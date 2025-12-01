@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Siling-AI</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        crossorigin="anonymous">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        /* --- PERBAIKAN SYNTAX CSS --- */
+        body {
+            background-color: #eaedf1ac;
+        }
+
+        #notificationBadge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            padding: 2px 6px;
+            border-radius: 50%;
+            background-color: #dc3545;
+            color: white;
+            font-size: 0.7rem;
+            line-height: 1;
+        }
+
+        .icon-lg {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .text-purple {
+            color: #6f42c1 !important;
+        }
+
+        .text-teal {
+            color: #20c997 !important;
+        }
+
+        .card-sensor {
+            transition: transform 0.2s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-sensor:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .custom-header {
+            background-color: white;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        /* Gaya untuk thumbnail gambar deteksi */
+        .detection-thumbnail {
+            width: 100px;
+            height: 75px;
+            object-fit: cover;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+        }
+
+        .detection-thumbnail:hover {
+            opacity: 0.8;
+            border-color: #007bff;
+        }
+
+        /* Gaya untuk gambar di modal agar responsif */
+        .modal-image-container img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: auto;
+        }
+
+        /* Tambahkan style untuk warna header warning agar terlihat */
+        .modal-header.bg-warning {
+            color: #212529;
+        }
+
+        /* === CONTAINER ALERT FIXED KANAN ATAS === */
+        #alertContainerFixed {
+            position: fixed;
+            top: 20px;
+            right: 80px;
+            z-index: 2000;
+            max-width: 400px;
+        }
+
+        /* Style untuk alert box itu sendiri */
+        #initialAlertModal {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            padding: 1rem;
+            min-width: 250px;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            margin-bottom: 0;
+        }
+
+        /* Kelas untuk menampilkan alert (akan ditambahkan di JS) */
+        #initialAlertModal.show {
+            opacity: 1;
+        }
+
+        /* Styling untuk container alert saat warning */
+        #initialAlertModal.bg-warning {
+            color: #212529;
+        }
+
+        /* CSS TAMBAHAN UNTUK MENGHILANGKAN OUTLINE PADA TOMBOL SILANG SAAT FOKUS/DIKLIK */
+        .btn-close:focus {
+            outline: none !important;
+            box-shadow: none !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="alertContainerFixed">
+        <div id="initialAlertModal" class="alert alert-dismissible fade" role="alert">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 id="initialAlertModalLabel" class="mb-0 me-2"><i class="bi bi-exclamation-triangle-fill"></i>
+                    Peringatan Baru!</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"
+                    id="closeAlertButton"></button>
+            </div>
+            <p id="modalAlertMessage" class="mb-0">Ada kondisi lingkungan yang perlu perhatian segera.</p>
+        </div>
+    </div>
+    <div class="modal fade" id="notificationListModal" tabindex="-1" aria-labelledby="notificationListModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="notificationListModalLabel"><i class="bi bi-bell-fill"></i> Riwayat
+                        Notifikasi (<span id="unreadCount">0</span> Belum Dibaca)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="list-group" id="notificationList">
+                        <li class="list-group-item text-muted">Tidak ada riwayat notifikasi.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="imageModalLabel">Hasil Deteksi Gambar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center modal-image-container">
+                    <img src="" id="fullImageDisplay" class="img-fluid" alt="Hasil Deteksi Jentik">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <header class="custom-header mb-4 shadow-sm">
+        <div class="container-fluid d-flex justify-content-between align-items-center p-4">
+            <div class="flex-grow-1 text-center">
+                <h2 class="text-primary mb-"><b>Monitoring Lingkungan RT Sehat</b></h2>
+                <p class="text-muted">Project Best Learning | TMJ 5A</p>
+            </div>
+
+            <div class="flex-shrink-0 ms-3">
+                <button class="position-relative border-0 bg-transparent p-0" data-bs-toggle="modal"
+                    data-bs-target="#notificationListModal" id="bellButton">
+                    <i class="bi bi-bell-fill fs-4 text-dark"></i>
+                    <span id="notificationBadge" class="d-none">1</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row g-4 mt-3">
+
+            <div class="col-lg-3 col-md-6">
+                <div class="card card-sensor bg-light shadow h-100">
+                    <div class="card-body text-center">
+                        <div class="text-primary icon-lg">🌡</div>
+                        <h5 class="card-title text-muted">SUHU</h5>
+                        <p class="text-secondary mb-1">Nilai:</p>
+                        <h3 class="fw-bold"><span id="dataSuhu">--</span> °C</h3>
+                        <p class="text-secondary mb-1">Status:</p>
+                        <h5 id="dataSuhuStatus" class="fw-bold text-dark">--</h5>
+                        <p class="small text-muted mt-2" id="solusiSuhu">Solusi: --</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="card card-sensor bg-light shadow h-100">
+                    <div class="card-body text-center">
+                        <div class="text-purple icon-lg">💧</div>
+                        <h5 class="card-title text-muted">KELEMBABAN</h5>
+                        <p class="text-secondary mb-1">Nilai:</p>
+                        <h3 class="fw-bold"><span id="dataKelembaban">--</span> % RH</h3>
+                        <p class="text-secondary mb-1">Status:</p>
+                        <h5 id="dataKelembabanStatus" class="fw-bold text-dark">--</h5>
+                        <p class="small text-muted mt-2" id="solusiKelembaban">Solusi: --</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="card card-sensor bg-light shadow h-100">
+                    <div class="card-body text-center">
+                        <div class="text-success icon-lg">🌊</div>
+                        <h5 class="card-title text-muted">KUALITAS AIR (pH)</h5>
+                        <p class="text-secondary mb-1">Nilai:</p>
+                        <h3 id="dataPH" class="fw-bold">-- pH</h3>
+                        <p class="text-secondary mb-1">Status:</p>
+                        <h5 id="dataPHStatus" class="fw-bold text-dark">--</h5>
+                        <p class="small text-muted mt-2" id="solusiPH">Solusi: --</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="card card-sensor bg-light shadow h-100">
+                    <div class="card-body text-center">
+                        <div class="text-warning icon-lg">💡</div>
+                        <h5 class="card-title text-muted">CAHAYA (LDR)</h5>
+                        <p class="text-secondary mb-1">Intensitas:</p>
+                        <h3 id="dataLDRLux" class="fw-bold text-dark">-- Lux</h3>
+                        <p class="text-secondary mb-1">Status:</p>
+                        <h5 id="dataLDRStatus" class="fw-bold text-dark">--</h5>
+                        <p class="small text-muted mt-2" id="solusiLDR">Solusi: --</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4 mt-4">
+
+            <div class="col-lg-4 col-md-6">
+                <div class="card card-sensor shadow h-100">
+                    <div class="card-body text-center">
+                        <div class="text-dark icon-lg">🔥</div>
+                        <h5 class="card-title text-muted">DETEKSI GAS & ASAP (MQ-2)</h5>
+                        <p class="text-secondary mb-1">Konsentrasi Gas:</p>
+                        <h3 class="fw-bold"><span id="dataMQ2PPM">--</span> ppm</h3>
+                        <p class="text-secondary mb-1">Status:</p>
+                        <h5 id="dataMQ2Status" class="fw-bold text-dark">--</h5>
+                        <p class="small text-muted mt-2" id="solusiMQ2">Solusi: --</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-6">
+                <div class="card card-sensor shadow h-100">
+                    <div class="card-body text-center">
+                        <div class="text-teal icon-lg">💨</div>
+                        <h5 class="card-title text-muted">KUALITAS UDARA (MQ-135)</h5>
+                        <p class="text-secondary mb-1">Polutan:</p>
+                        <h3 class="fw-bold"><span id="dataMQ135PPM">--</span> ppm</h3>
+                        <p class="text-secondary mb-1">Status Udara:</p>
+                        <h5 id="dataMQ135Status" class="fw-bold text-dark">--</h5>
+                        <p class="small text-muted mt-2" id="solusiMQ135">Solusi: --</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 col-md-12">
+                <div class="card card-sensor shadow h-100">
+                    <div class="card-body text-center">
+                        <div class="text-danger icon-lg">🦟</div>
+                        <h5 class="card-title text-muted">DETEKSI JENTIK (AI)</h5>
+                        <p class="text-secondary mb-1">Status Terakhir:</p>
+                        <h3 id="dataJentikStatus" class="fw-bold text-dark">--</h3>
+                        <img id="jentikDetectionImage" src="" alt="Hasil Deteksi Jentik"
+                            class="detection-thumbnail d-none">
+                        <p class="small text-muted mt-2" id="solusiJentik">Solusi: --</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row justify-content-center mb-5">
+            <div class="col-lg-4 col-md-6 text-center">
+                <button id="triggerAIButton" class="btn btn-danger btn-lg shadow-lg w-100" type="button">
+                    <i class="bi bi-camera-fill"></i> DETEKSI JENTIK
+                </button>
+                <small id="aiMessage" class="text-muted mt-2 d-block">Klik untuk menjalankan deteksi AI.</small>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        crossorigin="anonymous"></script>
+
+    <script>
+        // ====================================================================
+        // === KONFIGURASI DAN FUNGSI UTAMA JAVASCRIPT ===
+        // ====================================================================
+
+        const API_BASE_URL = window.location.origin;
+        const API_LATEST = `${API_BASE_URL}/data`;
+        const API_TRIGGER = `${API_BASE_URL}/trigger_ai`;
+        const DETECTIONS_IMAGE_URL_BASE = `${API_BASE_URL}/static/results/detections/`;
+
+        let notifications = [];
+        let unreadCount = 0;
+        let jentikLastStatus = "--";
+        let jentikLastType = "dark";
+        let jentikLastImagePath = null;
+
+        const alertType = {
+            SUCCESS: 'success',
+            ERROR: 'error',
+            WARNING: 'warning',
+            INFO: 'info'
+        };
+
+        // ====================================================================
+        // === FUNGSI MODIFIKASI: FORMAT KE 3 DIGIT EQUIVALENT (TANPA TITIK) ===
+        // ====================================================================
+        function formatToThreeDigitEquivalent(floatValue) {
+            if (floatValue === null || isNaN(floatValue)) return '--';
+            const fixedString = floatValue.toFixed(1);
+            const integerEquivalent = fixedString.replace('.', '');
+            return integerEquivalent;
+        }
+
+        // === Fungsi Tambah Notifikasi ===
+        function addNotification(message, type = 'danger') {
+            if (type !== 'danger' && type !== 'warning') return null;
+
+            const timestamp = new Date().toLocaleString();
+            const newNotif = {
+                id: Date.now(),
+                message: message,
+                timestamp: timestamp,
+                type: type,
+                read: false,
+            };
+            notifications.unshift(newNotif);
+            if (notifications.length > 20) {
+                notifications.pop();
+            }
+            unreadCount++;
+            updateNotificationUI();
+            return newNotif;
+        }
+
+        // === Fungsi Update UI Notifikasi ===
+        function updateNotificationUI() {
+            const badge = document.getElementById('notificationBadge');
+            const list = document.getElementById('notificationList');
+            const unreadCounter = document.getElementById('unreadCount');
+
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount;
+                badge.classList.remove('d-none');
+            } else {
+                badge.classList.add('d-none');
+            }
+
+            if (unreadCounter) {
+                unreadCounter.textContent = unreadCount;
+            }
+
+            if (list) {
+                list.innerHTML = '';
+                if (notifications.length === 0) {
+                    list.innerHTML = '<li class="list-group-item text-muted">Tidak ada riwayat notifikasi.</li>';
+                    return;
+                }
+
+                notifications.forEach(notif => {
+                    const itemClass = notif.read ? 'list-group-item-light' : `list-group-item-${notif.type || 'danger'}`;
+                    const readStatus = notif.read ? '' : 'fw-normal';
+
+                    let icon = '';
+                    switch (notif.type) {
+                        case 'danger': icon = '🚨'; break;
+                        case 'warning': icon = '⚠'; break;
+                        default: icon = '💬';
+                    }
+
+                    list.innerHTML += `
+                    <li class="list-group-item ${itemClass} ${readStatus}">
+                        ${icon} ${notif.message}
+                        <br><small class="text-muted">${notif.timestamp}</small>
+                    </li>
+                `;
+                });
+            }
+        }
+
+        // === Fungsi Deteksi Kondisi Bahaya dari Data Sensor ===
+        function checkHealthAlert(data) {
+            let currentAlert = false;
+            let alertMessage = "";
+            let alertTypeValue = ""; 
+
+            const temp_val = parseFloat(data.temp) || 0;
+            const hum_val = parseFloat(data.hum) || 0;
+            const ph_val = parseFloat(data.ph_val) || 0;
+            const ph_status = data.ph_status || ""; 
+            const mq2_status = data.mq2_status || "";
+            const mq135_ppm = parseFloat(data.mq135_ppm) || 0;
+            const jentik_status = data.jentik_status || "--";
+
+            const status_mq135_ppm = mq135_ppm;
+            const formatted_mq135_ppm = formatToThreeDigitEquivalent(mq135_ppm);
+
+            // Prioritas 1: Gas/Asap (DANGER)
+            if (mq2_status.includes("Terdeteksi")) {
+                alertMessage = "🚨 BAHAYA! Gas/Asap terdeteksi. Segera periksa sumbernya!";
+                currentAlert = true;
+                alertTypeValue = 'danger';
+            } else if (jentik_status.includes("Terdeteksi")) {
+                alertMessage = "🚨 Jentik terdeteksi oleh AI. Lakukan tindakan segera!";
+                currentAlert = true;
+                alertTypeValue = 'danger';
+            } else if (status_mq135_ppm >= 30.0) {
+                alertMessage = `🚨 Kualitas udara BURUK (${formatted_mq135_ppm} ppm). Perlu ventilasi segera!`;
+                currentAlert = true;
+                alertTypeValue = 'danger';
+            } else if (temp_val > 30) {
+                alertMessage = `🚨 Suhu ruangan BAHAYA (${temp_val}°C). Suhu terlalu tinggi! Segera aktifkan pendingin udara.`;
+                currentAlert = true;
+                alertTypeValue = 'danger';
+            } else if (temp_val < 18) {
+                alertMessage = `🚨 Suhu ruangan BAHAYA (${temp_val}°C). Suhu terlalu rendah! Segera aktifkan pemanas ruangan.`;
+                currentAlert = true;
+                alertTypeValue = 'danger';
+            } 
+            // PERBAIKAN LOGIKA pH BERDASARKAN STATUS BARU
+            else if (ph_status.includes("🔴 ASAM")) {
+                alertMessage = `🚨 Kualitas Air (pH) BAHAYA (${ph_val} pH). Air terlalu ASAM! Segera ganti air atau netralkan!`;
+                currentAlert = true;
+                alertTypeValue = 'danger';
+            } else if (ph_status.includes("🔵 BASA")) {
+                alertMessage = `🚨 Kualitas Air (pH) BAHAYA (${ph_val} pH). Air terlalu BASA! Segera ganti air atau netralkan!`;
+                currentAlert = true;
+                alertTypeValue = 'danger';
+            } else if (hum_val > 70) {
+                alertMessage = `🚨 Kelembaban ruangan BAHAYA (${hum_val}% RH). Kelembaban terlalu tinggi! Segera aktifkan Dehumidifier.`;
+                currentAlert = true;
+                alertTypeValue = 'danger';
+            } else if (hum_val < 40) {
+                alertMessage = `🚨 Kelembaban ruangan BAHAYA (${hum_val}% RH). Kelembaban terlalu rendah! Segera aktifkan Humidifier.`;
+                currentAlert = true;
+                alertTypeValue = 'danger';
+            }
+
+            if (currentAlert) {
+                const lastNotif = notifications[0];
+                if (lastNotif && lastNotif.message === alertMessage && (Date.now() - lastNotif.id) < 5000) {
+                    return;
+                }
+
+                const newNotif = addNotification(alertMessage, alertTypeValue);
+
+                // PERBAIKI: gunakan alertTypeValue bukan alertType
+                if ((alertTypeValue === 'danger' || alertTypeValue === 'warning') && newNotif) {
+                    const initialAlertDiv = document.getElementById('initialAlertModal');
+                    const modalBody = document.getElementById('modalAlertMessage');
+                    const closeBtn = document.getElementById('closeAlertButton');
+                    const modalLabel = document.getElementById('initialAlertModalLabel');
+
+                    if (modalBody && initialAlertDiv) {
+                        modalBody.innerHTML = `${alertMessage} <br><small class="text-muted mt-2 d-block">Waktu: ${newNotif.timestamp}</small>`;
+
+                        initialAlertDiv.classList.remove('alert-danger', 'bg-warning', 'alert-warning', 'alert-success', 'fade', 'show', 'text-white');
+
+                        // PERBAIKI: gunakan alertTypeValue
+                        initialAlertDiv.classList.add(`alert-${alertTypeValue}`, 'fade');
+                        initialAlertDiv.setAttribute('role', 'alert');
+
+                        if (alertTypeValue === 'danger') {
+                            initialAlertDiv.classList.add('bg-danger', 'text-white');
+                            modalLabel.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> Peringatan Baru!`;
+                            if (closeBtn) closeBtn.classList.add('btn-close-white');
+                        } else {
+                            initialAlertDiv.classList.add('bg-warning');
+                            modalLabel.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> Peringatan Baru!`;
+                            if (closeBtn) closeBtn.classList.remove('btn-close-white');
+                        }
+
+                        initialAlertDiv.classList.add('show');
+
+                        const handleAlertClose = () => {
+                            if (!newNotif.read) {
+                                newNotif.read = true;
+                                updateNotificationUI();
+                            }
+                            initialAlertDiv.removeEventListener('closed.bs.alert', handleAlertClose);
+                        };
+
+                        const alertInstance = bootstrap.Alert.getOrCreateInstance(initialAlertDiv);
+                        initialAlertDiv.addEventListener('closed.bs.alert', handleAlertClose);
+
+                        if (closeBtn) {
+                            closeBtn.onclick = function () {
+                                initialAlertDiv.classList.remove('show');
+                                setTimeout(() => {
+                                    alertInstance.dispose();
+                                    if (!newNotif.read) handleAlertClose();
+                                }, 500);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // === Fungsi Utama: Ambil Data dari Flask ===
+        async function updateSensorData() {
+            try {
+                const response = await fetch(API_LATEST, {
+                    headers: { 
+                        "X-API-KEY": "PBLKEL4",
+                        'Content-Type': 'application/json'
+                    } 
+                });
+                
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                const data = await response.json();
+
+                console.log("✅ Data diterima:", data);
+
+                const temp_val = parseFloat(data.temp) || 0;
+                const hum_val = parseFloat(data.hum) || 0;
+                const ph_val = parseFloat(data.ph_val) || 0;
+                const ph_status = data.ph_status || ""; 
+                const mq2_status = data.mq2_status || '--';
+                const mq2_ppm_float = parseFloat(data.mq2_ppm) || 0;
+                const mq135_ppm = parseFloat(data.mq135_ppm) || 0;
+                const jentik_status = data.jentik_status || '--';
+
+                const formatted_mq2_ppm = formatToThreeDigitEquivalent(mq2_ppm_float);
+                const formatted_mq135_ppm = formatToThreeDigitEquivalent(mq135_ppm);
+
+                // Perbarui Nilai Numerik
+                if (document.getElementById("dataSuhu")) document.getElementById("dataSuhu").textContent = data.temp || '--';
+                if (document.getElementById("dataKelembaban")) document.getElementById("dataKelembaban").textContent = data.hum || '--';
+                if (document.getElementById("dataPH")) document.getElementById("dataPH").textContent = `${data.ph_val || '--'} pH`;
+                if (document.getElementById("dataMQ2PPM")) document.getElementById("dataMQ2PPM").textContent = formatted_mq2_ppm || '--';
+                if (document.getElementById("dataMQ135PPM")) document.getElementById("dataMQ135PPM").textContent = formatted_mq135_ppm || '--';
+
+                // Pembaruan Status Suhu
+                const dataSuhuStatusElement = document.getElementById("dataSuhuStatus");
+                const solusiSuhuElement = document.getElementById("solusiSuhu");
+                if (dataSuhuStatusElement) {
+                    let status = 'Ideal';
+                    let statusClass = 'success';
+                    let statusIcon = 'bi-check-circle-fill';
+                    let solusiText = 'Kondisi suhu normal sehingga mendukung berbagai aktivitas. Pertahankan kondisi ini.';
+
+                    if (temp_val > 30) {
+                        status = 'Bahaya';
+                        statusClass = 'danger';
+                        statusIcon = 'bi-x-circle-fill';
+                        solusiText = 'Suhu terlalu tinggi dan berpotensi menyebabkan dehidrasi serta heatstroke. Segera nyalakan pendingin ruangan atau buka ventilasi.';
+                    } else if (temp_val < 18) {
+                        status = 'Bahaya';
+                        statusClass = 'danger';
+                        statusIcon = 'bi-x-circle-fill';
+                        solusiText = 'Suhu terlalu rendah dan dapat memicu hipotermia serta nyeri sendi dan otot. Segera aktifkan pemanas ruangan atau tutup ventilasi.';
+                    }
+                    dataSuhuStatusElement.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${status}`;
+                    dataSuhuStatusElement.className = `fw-bold text-dark`;
+                    if (solusiSuhuElement) solusiSuhuElement.textContent = `Solusi: ${solusiText}`;
+                }
+
+                // Pembaruan Status Kelembaban
+                const dataKelembabanStatusElement = document.getElementById("dataKelembabanStatus");
+                const solusiKelembabanElement = document.getElementById("solusiKelembaban");
+                if (dataKelembabanStatusElement) {
+                    let status = 'Ideal';
+                    let statusClass = 'success';
+                    let statusIcon = 'bi-check-circle-fill';
+                    let solusiText = 'Kondisi kelembaban ideal. Pertahankan.';
+
+                    if (hum_val > 70) {
+                        status = 'BAHAYA';
+                        statusClass = 'danger';
+                        statusIcon = 'bi-x-circle-fill';
+                        solusiText = 'Kelembaban terlalu tinggi. Segera aktifkan Dehumidifier atau buka jendela untuk sirkulasi.';
+                    } else if (hum_val < 40) {
+                        status = 'BAHAYA';
+                        statusClass = 'danger';
+                        statusIcon = 'bi-x-circle-fill';
+                        solusiText = 'Kelembaban terlalu rendah. Segera aktifkan Humidifier atau letakkan wadah berisi air.';
+                    }
+                    dataKelembabanStatusElement.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${status}`;
+                    dataKelembabanStatusElement.className = `fw-bold text-dark`;
+                    if (solusiKelembabanElement) solusiKelembabanElement.textContent = `Solusi: ${solusiText}`;
+                }
+
+                // Pembaruan Status pH
+                const dataPHStatusElement = document.getElementById("dataPHStatus");
+                const solusiPHElement = document.getElementById("solusiPH");
+                if (dataPHStatusElement) {
+                    let status = 'Netral';
+                    let statusClass = 'success';
+                    let statusIcon = 'bi-check-circle-fill';
+                    let solusiText = 'Kualitas air pH ideal (Netral). Pertahankan kebersihannya.';
+
+                    if (ph_status.includes("🔴 ASAM")) {
+                        status = 'ASAM';
+                        statusClass = 'danger';
+                        statusIcon = 'bi-x-circle-fill';
+                        solusiText = 'pH air ASAM. Segera ganti air atau netralkan cepat dengan pengangkat pH!';
+                    } else if (ph_status.includes("🔵 BASA")) {
+                        status = 'BASA';
+                        statusClass = 'danger';
+                        statusIcon = 'bi-x-circle-fill';
+                        solusiText = 'pH air BASA. Segera ganti air atau netralkan cepat dengan penurun pH!';
+                    } else if (ph_status.includes("🟢 NETRAL")) {
+                        status = 'NETRAL';
+                        statusClass = 'success';
+                        statusIcon = 'bi-check-circle-fill';
+                        solusiText = 'Kualitas air pH ideal (Netral). Pertahankan kebersihannya.';
+                    }
+                    
+                    dataPHStatusElement.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${status}`;
+                    dataPHStatusElement.className = `fw-bold text-dark`;
+                    if (solusiPHElement) solusiPHElement.textContent = `Solusi: ${solusiText}`;
+                }
+
+                // ==================================================
+                // 📌 PERBAIKAN LDR: MEMETAKAN STATUS MARKER KE TEKS RINCI
+                // ==================================================
+                const dataLDRStatusElement = document.getElementById("dataLDRStatus");
+                const dataLDRLuxElement = document.getElementById("dataLDRLux");
+                const solusiLDRElement = document.getElementById("solusiLDR");
+
+                const pythonLux = parseFloat(data.ldr_lux) || 0;
+                const ldr_status_marker = data.ldr_status || 'Error'; // Ambil marker: "Rendah", "Ideal", atau "Tinggi"
+
+                let luxDisplayValue = '-- Lux';
+                if (pythonLux > 0) {
+                    luxDisplayValue = `${pythonLux.toFixed(0)} Lux`;
+                }
+                if (dataLDRLuxElement) {
+                    dataLDRLuxElement.textContent = luxDisplayValue;
+                }
+
+                if (dataLDRStatusElement) {
+                    let statusClass = 'secondary';
+                    let statusIcon = 'bi-question-circle-fill';
+                    let solusiText = 'Gagal mengambil data atau status tidak terdefinisi.';
+                    let displayStatusText = ldr_status_marker;
+
+                    if (ldr_status_marker === 'Ideal') {
+                        statusClass = 'success';
+                        statusIcon = 'bi-check-circle-fill';
+                        displayStatusText = 'Ideal';
+                        solusiText = 'Tingkat pencahayaan berada dalam rentang ideal (250-350 Lux). Kondisi ini mendukung berbagai aktivitas tanpa memerlukan penyesuaian tambahan.';
+                    } else if (ldr_status_marker === 'Rendah') {
+                        statusClass = 'danger';
+                        statusIcon = 'bi-x-circle-fill';
+                        displayStatusText = 'Tidak Ideal';
+                        solusiText = 'Tingkat pencahayaan rendah (< 250 Lux). Kondisi ini dapat menyebabkan mata cepat lelah dan mengurangi fokus. Segera tambahkan sumber cahaya, nyalakan lampu, atau buka tirai untuk meningkatkan pencahayaan.';
+                    } else if (ldr_status_marker === 'Tinggi') {
+                        statusClass = 'warning';
+                        statusIcon = 'bi-x-circle-fill';
+                        displayStatusText = 'Tidak Ideal';
+                        solusiText = 'Tingkat pencahayaan tinggi (> 350 Lux). Kondisi ini dapat menimbulkan silau dan membuat mata cepat lelah. Kurangi intensitas cahaya, gunakan tirai, atau atur ulang sumber cahaya agar tidak langsung mengarah ke mata.';
+                    }
+                    
+                    // Teks Hitam, Ikon Berwarna
+                    dataLDRStatusElement.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${displayStatusText}`;
+                    dataLDRStatusElement.className = `fw-bold text-dark`;
+                    if (solusiLDRElement) solusiLDRElement.textContent = `Solusi: ${solusiText}`;
+                }
+                // ==================================================
+
+
+                // Pembaruan MQ-2
+                const solusiMQ2Element = document.getElementById("solusiMQ2");
+                if (document.getElementById("dataMQ2Status")) {
+                    const statusEl = document.getElementById("dataMQ2Status");
+
+                    let status = mq2_status;
+                    let statusClass = 'success';
+                    let statusIcon = 'bi-check-circle-fill';
+                    let solusiText = 'Konsentrasi gas normal. Tetap waspada terhadap bau tak sedap dan lakukan pemeriksaan rutin.';
+
+                    if (status.includes('Terdeteksi')) {
+                        statusClass = 'danger';
+                        statusIcon = 'bi-x-circle-fill';
+                        solusiText = 'DARURAT! Lakukan evakuasi segera dan periksa sumber kebocoran gas atau asap (misal: kompor, korsleting) secepatnya!';
+                    }
+                    statusEl.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${status}`;
+                    statusEl.className = `fw-bold text-dark`;
+                    if (solusiMQ2Element) solusiMQ2Element.textContent = `Solusi: ${solusiText}`;
+                }
+
+                // Pembaruan MQ-135
+                const solusiMQ135Element = document.getElementById("solusiMQ135");
+                if (document.getElementById("dataMQ135Status")) {
+                    const statusEl = document.getElementById("dataMQ135Status");
+
+                    let mq135_status_text = 'T/A';
+                    let statusClass = 'secondary';
+                    let statusIcon = 'bi-question-circle-fill';
+                    let solusiText = 'Sensor belum membaca data.';
+
+                    const status_mq135_ppm = mq135_ppm;
+
+                    if (status_mq135_ppm >= 30.0) {
+                        mq135_status_text = 'BURUK';
+                        statusClass = 'danger';
+                        statusIcon = 'bi-x-circle-fill';
+                        solusiText = 'Kualitas udara rendah. Segera tingkatkan ventilasi dan periksa sumber polutan (misal: knalpot, pembakaran).';
+                    } else if (status_mq135_ppm > 0) {
+                        mq135_status_text = 'BAIK';
+                        statusClass = 'success';
+                        statusIcon = 'bi-check-circle-fill';
+                        solusiText = 'Kualitas udara baik. Pertahankan sirkulasi udara yang memadai.';
+                    }
+                    statusEl.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${mq135_status_text}`;
+                    statusEl.className = `fw-bold text-dark`;
+                    if (solusiMQ135Element) solusiMQ135Element.textContent = `Solusi: ${solusiText}`;
+                }
+
+                // Pembaruan Hasil AI Jentik
+                const statusElement = document.getElementById('dataJentikStatus');
+                const imageElement = document.getElementById('jentikDetectionImage');
+                const solusiJentikElement = document.getElementById("solusiJentik");
+
+                if (data.jentik_status && statusElement) {
+                    jentikLastStatus = data.jentik_status;
+
+                    let statusClass = 'dark';
+                    let statusIcon = '';
+                    let solusiText = 'Jalankan deteksi manual jika ragu.';
+
+                    if (data.jentik_status.includes("Terdeteksi")) {
+                        statusClass = 'danger';
+                        statusIcon = 'bi-x-circle-fill';
+                        solusiText = 'RISIKO DBD TINGGI! Segera lakukan Kuras, Sikat, Tutup (3M) dan taburkan abate pada penampungan air segera!';
+                    } else if (data.jentik_status.includes("Tidak Terdeteksi")) {
+                        statusClass = 'success';
+                        statusIcon = 'bi-check-circle-fill';
+                        solusiText = 'Lingkungan aman dari jentik. Tetap lakukan pencegahan 3M (Menguras, Menutup, Mendaur ulang) secara rutin.';
+                    } else if (data.jentik_status.includes("Scanning")) {
+                        statusClass = 'warning';
+                        statusIcon = '';
+                        solusiText = 'Deteksi sedang berlangsung. Tunggu hasilnya. Jangan ganggu perangkat sensor.';
+                    } else {
+                        statusClass = 'warning';
+                        statusIcon = 'bi-exclamation-triangle-fill';
+                        solusiText = 'Perlu cek ulang sensor/kondisi air.';
+                    }
+
+                    const iconHtml = statusIcon ? `<i class="bi ${statusIcon} text-${statusClass}"></i> ` : '';
+                    const textClass = (data.jentik_status.includes("Scanning") || data.jentik_status.includes("Tidak Jelas")) ? `text-${statusClass}` : 'text-dark';
+
+                    statusElement.innerHTML = `${iconHtml}<span class="${textClass}">${jentikLastStatus}</span>`;
+                    statusElement.className = `fw-bold text-dark`;
+                    if (solusiJentikElement) solusiJentikElement.textContent = `Solusi: ${solusiText}`;
+                }
+
+                if (data.jentik_image && imageElement) {
+                    jentikLastImagePath = data.jentik_image;
+                    imageElement.src = jentikLastImagePath;
+                    imageElement.classList.remove('d-none');
+                } else if (imageElement && !jentikLastImagePath) {
+                    imageElement.classList.add('d-none');
+                    imageElement.src = "";
+                    jentikLastImagePath = null;
+                }
+
+                checkHealthAlert(data);
+
+            } catch (err) {
+                console.error("❌ Gagal mengambil data sensor:", err);
+            }
+        }
+
+        // === FUNGSI TRIGGER AI MANUAL ===
+        async function triggerAI() {
+            const button = document.getElementById('triggerAIButton');
+            const messageBox = document.getElementById('aiMessage');
+            const statusCardElement = document.getElementById('dataJentikStatus');
+            const imageCardElement = document.getElementById('jentikDetectionImage');
+            const solusiJentikElement = document.getElementById("solusiJentik");
+            const originalButtonContent = button.innerHTML;
+
+            if (!button || !messageBox || !statusCardElement || !imageCardElement || !solusiJentikElement) {
+                console.error("Elemen UI tidak ditemukan.");
+                return;
+            }
+
+            // State Awal (Loading)
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> MEMPROSES DETEKSI...';
+            messageBox.textContent = 'Memulai deteksi AI... Tunggu sebentar.';
+            messageBox.className = 'text-warning mt-2 d-block';
+
+            jentikLastStatus = "Scanning...";
+            jentikLastType = "warning";
+
+            statusCardElement.innerHTML = `<span class="text-warning">${jentikLastStatus}</span>`;
+            statusCardElement.className = `fw-bold text-dark`;
+            solusiJentikElement.textContent = 'Solusi: Deteksi sedang berlangsung. Tunggu hasilnya. Jangan ganggu perangkat sensor.';
+
+            imageCardElement.classList.add('d-none');
+            imageCardElement.src = "";
+            jentikLastImagePath = null;
+
+            try {
+                const response = await fetch(API_TRIGGER, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-KEY': 'PBLKEL4'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Gagal mengirim perintah: HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                const detectionResultStatus = result.status || "Tidak ada hasil";
+                const detectionImagePath = result.result_image || null;
+
+                let status = 'Deteksi Selesai, Status Tidak Jelas';
+                let statusClass = 'warning';
+                let statusIcon = 'bi-exclamation-triangle-fill';
+                let solusiText = 'Perlu cek ulang sensor/kondisi air.';
+
+                if (detectionResultStatus.includes("Ada jentik terdeteksi")) {
+                    status = 'Jentik Terdeteksi!';
+                    statusClass = 'danger';
+                    statusIcon = 'bi-x-circle-fill';
+                    solusiText = 'RISIKO DBD TINGGI! Segera lakukan Kuras, Sikat, Tutup (3M) dan taburkan abate pada penampungan air segera!';
+
+                    const notifMessage = `🚨 Jentik terdeteksi: ${detectionResultStatus}`;
+                    addNotification(notifMessage, 'danger');
+                } else if (detectionResultStatus.includes("Tidak ada jentik terdeteksi")) {
+                    status = 'Jentik Tidak Terdeteksi';
+                    statusClass = 'success';
+                    statusIcon = 'bi-check-circle-fill';
+                    solusiText = 'Lingkungan aman dari jentik. Tetap lakukan pencegahan 3M (Menguras, Menutup, Mendaur ulang) secara rutin.';
+                }
+
+                statusCardElement.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${status}`;
+                statusCardElement.className = `fw-bold text-dark`;
+                solusiJentikElement.textContent = `Solusi: ${solusiText}`;
+
+                if (detectionImagePath) {
+                    jentikLastImagePath = detectionImagePath;
+                    imageCardElement.src = jentikLastImagePath;
+                    imageCardElement.classList.remove('d-none');
+                } else {
+                    imageCardElement.classList.add('d-none');
+                    imageCardElement.src = "";
+                    jentikLastImagePath = null;
+                }
+
+                messageBox.textContent = 'Klik untuk menjalankan deteksi AI pada sampel air.';
+                messageBox.className = 'text-muted mt-2 d-block';
+
+            } catch (error) {
+                console.error('Trigger AI gagal:', error);
+
+                messageBox.textContent = `❌ Gagal: ${error.message}. Cek server.`;
+                messageBox.className = 'text-danger mt-2 d-block';
+
+                addNotification(`🚨 Gagal terhubung/proses AI: ${error.message}`, 'danger');
+
+            } finally {
+                button.innerHTML = originalButtonContent;
+                button.disabled = false;
+            }
+        }
+
+        // === Jalankan Saat Halaman Dimuat ===
+        document.addEventListener('DOMContentLoaded', function () {
+            const triggerButton = document.getElementById('triggerAIButton');
+            if (triggerButton) {
+                triggerButton.addEventListener('click', triggerAI);
+            }
+
+            const notifModal = document.getElementById('notificationListModal');
+            if (notifModal) {
+                notifModal.addEventListener('hidden.bs.modal', function () {
+                    notifications.forEach(notif => notif.read = true);
+                    unreadCount = 0;
+                    updateNotificationUI();
+                });
+            }
+
+            const jentikImageElement = document.getElementById('jentikDetectionImage');
+            if (jentikImageElement) {
+                jentikImageElement.addEventListener('click', function () {
+                    if (jentikLastImagePath) {
+                        const fullImageDisplay = document.getElementById('fullImageDisplay');
+                        fullImageDisplay.src = jentikLastImagePath;
+                        const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+                        imageModal.show();
+                    }
+                });
+            }
+
+            document.querySelectorAll('.fw-bold').forEach(el => {
+                el.classList.remove('text-success', 'text-warning', 'text-danger', 'text-secondary', 'text-primary');
+                el.classList.add('text-dark');
+            });
+
+            updateSensorData();
+            setInterval(updateSensorData, 5000);
+            updateNotificationUI();
+        });
+    </script>
+</body>
+</html>
