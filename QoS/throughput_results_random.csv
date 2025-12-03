@@ -1,0 +1,2 @@
+size_mb,throughput_upload_kbps,throughput_download_kbps,time_upload_s,time_download_s,time_total_s
+5,4391.4949793573305,5237.5518319741595,9.550970727999811,8.008138410000356,17.559109138000167

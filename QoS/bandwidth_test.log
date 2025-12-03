@@ -1,0 +1,43 @@
+2025-12-02 17:39:11,982 - INFO - ============================================================
+2025-12-02 17:39:11,982 - INFO - MEMULAI COMPREHENSIVE BANDWIDTH TEST
+2025-12-02 17:39:11,983 - INFO - Target Server: https://pbl-tmj5a.siling-ai.my.id
+2025-12-02 17:39:11,983 - INFO - ============================================================
+2025-12-02 17:39:11,983 - INFO - 
+📡 Testing Latency & Jitter...
+2025-12-02 17:39:14,004 - INFO -   Latency: 61.93 ms
+2025-12-02 17:39:14,004 - INFO -   Jitter: 22.82 ms
+2025-12-02 17:39:14,004 - INFO -   Packet Loss: 0.0%
+2025-12-02 17:39:14,004 - INFO - 
+⬇️  Testing Download Bandwidth...
+2025-12-02 17:39:14,398 - ERROR - Download test failed for 1MB: 400 Client Error: Bad Request for url: https://pbl-tmj5a.siling-ai.my.id/throughput_download?size_mb=1
+2025-12-02 17:39:14,401 - INFO -   1MB: 0.00 Mbps
+2025-12-02 17:39:25,104 - INFO -   5MB: 4.32 Mbps
+2025-12-02 17:39:39,549 - INFO -   10MB: 6.24 Mbps
+2025-12-02 17:40:05,994 - INFO -   20MB: 6.59 Mbps
+2025-12-02 17:40:44,270 - INFO -   30MB: 6.75 Mbps
+2025-12-02 17:41:45,255 - INFO - ============================================================
+2025-12-02 17:41:45,256 - INFO - MEMULAI COMPREHENSIVE BANDWIDTH TEST
+2025-12-02 17:41:45,256 - INFO - Target Server: https://pbl-tmj5a.siling-ai.my.id
+2025-12-02 17:41:45,257 - INFO - ============================================================
+2025-12-02 17:41:45,257 - INFO - 
+📡 Testing Latency & Jitter...
+2025-12-02 17:41:47,121 - INFO -   Latency: 56.21 ms
+2025-12-02 17:41:47,122 - INFO -   Jitter: 13.23 ms
+2025-12-02 17:41:47,122 - INFO -   Packet Loss: 0.0%
+2025-12-02 17:41:47,122 - INFO - 
+⬇️  Testing Download Bandwidth...
+2025-12-02 17:41:47,412 - ERROR - Download test failed for 1MB: 400 Client Error: Bad Request for url: https://pbl-tmj5a.siling-ai.my.id/throughput_download?size_mb=1
+2025-12-02 17:41:47,415 - INFO -   1MB: 0.00 Mbps
+2025-12-02 17:41:59,813 - INFO -   5MB: 3.68 Mbps
+2025-12-02 17:42:14,852 - INFO -   10MB: 5.98 Mbps
+2025-12-02 17:42:44,575 - INFO -   20MB: 5.84 Mbps
+2025-12-02 17:43:26,025 - INFO -   30MB: 6.22 Mbps
+2025-12-02 17:44:28,123 - INFO -   50MB: 6.86 Mbps
+2025-12-02 17:44:29,124 - INFO - 
+⬆️  Testing Upload Bandwidth...
+2025-12-02 17:44:31,557 - INFO -   1MB: 4.54 Mbps
+2025-12-02 17:44:55,921 - INFO -   5MB: 6.80 Mbps
+2025-12-02 17:46:07,135 - INFO -   10MB: 6.68 Mbps
+2025-12-02 17:50:21,652 - INFO -   20MB: 6.43 Mbps
+2025-12-02 17:58:14,229 - ERROR - Upload test failed for 30MB: HTTPSConnectionPool(host='pbl-tmj5a.siling-ai.my.id', port=443): Read timed out. (read timeout=30)
+2025-12-02 17:58:14,229 - INFO -   30MB: 0.00 Mbps
