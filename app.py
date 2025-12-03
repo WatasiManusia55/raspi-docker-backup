@@ -233,8 +233,8 @@ DB_PASS = os.getenv("DB_PASS", "iotpass123")
 # ====================================================
 # === AUTENTIKASI API KEY & UTILITY CACHE OFFLINE ===
 # ====================================================
-RATE_LIMIT = 5
-RATE_WINDOW = 10
+RATE_LIMIT = 500
+RATE_WINDOW = 60
 rate_log = {}
 
 
@@ -252,7 +252,6 @@ def rate_limit(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         key = request.headers.get("X-API-KEY")
-
 
         now = time.time()
 
@@ -697,6 +696,44 @@ def heartbeat():
 def throughput_upload():
     received = request.data
     return {"status": "ok", "size_bytes": len(received)}
+
+@app.route("/throughput_download", methods=["GET"])
+def throughput_download():
+    """
+    Endpoint untuk uji throughput download.
+    Ukuran HARUS dikirim oleh client: ?size_mb=5 ... 50
+    """
+    # Pastikan parameter ada
+    if "size_mb" not in request.args:
+        return {"error": "Parameter 'size_mb' wajib ada, contoh: /throughput_download?size_mb=10"}, 400
+
+    # Validasi apakah integer
+    try:
+        size_mb = int(request.args["size_mb"])
+    except ValueError:
+        return {"error": "size_mb harus berupa angka"}, 400
+
+    # Validasi rentang 5–50 MB
+    if size_mb < 5 or size_mb > 50:
+        return {"error": "size_mb harus di antara 5 dan 50 MB"}, 400
+
+    size_bytes = size_mb * 1024 * 1024
+    chunk = b"a" * 8192  # 8 KB per chunk
+
+    def generate():
+        remaining = size_bytes
+        while remaining > 0:
+            to_send = min(len(chunk), remaining)
+            yield chunk[:to_send]
+            remaining -= to_send
+
+    headers = {
+        "Content-Type": "application/octet-stream",
+        "Content-Length": str(size_bytes),
+        "Content-Disposition": f'attachment; filename="dummy_{size_mb}mb.bin"',
+    }
+
+    return app.response_class(generate(), headers=headers)
     
 @app.route("/")
 def index():
