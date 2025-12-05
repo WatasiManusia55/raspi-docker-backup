@@ -1,0 +1,46 @@
+[
+  {
+    "test_id": "terang_1",
+    "lighting_condition": "terang",
+    "filename": "webcam_test_terang_1_terang.jpg",
+    "file_size_bytes": 19121,
+    "latency_breakdown": {
+      "total": 1614.97
+    },
+    "method": "ffmpeg",
+    "success": true
+  },
+  {
+    "test_id": "terang_2",
+    "lighting_condition": "terang",
+    "filename": "webcam_test_terang_2_terang.jpg",
+    "file_size_bytes": 19077,
+    "latency_breakdown": {
+      "total": 1516.84
+    },
+    "method": "ffmpeg",
+    "success": true
+  },
+  {
+    "test_id": "normal_1",
+    "lighting_condition": "normal",
+    "filename": "webcam_test_normal_1_normal.jpg",
+    "file_size_bytes": 19014,
+    "latency_breakdown": {
+      "total": 1518.2
+    },
+    "method": "ffmpeg",
+    "success": true
+  },
+  {
+    "test_id": "normal_2",
+    "lighting_condition": "normal",
+    "filename": "webcam_test_normal_2_normal.jpg",
+    "file_size_bytes": 19239,
+    "latency_breakdown": {
+      "total": 1512.62
+    },
+    "method": "ffmpeg",
+    "success": true
+  }
+]

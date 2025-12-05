@@ -1,0 +1,79 @@
+{
+    "metadata": {
+        "model_path": "/home/pi/Documents/AI/best (14).pt",
+        "device": "cpu",
+        "config": {
+            "min_conf": 0.6,
+            "img_size": 1408,
+            "nms_iou": 0.52
+        }
+    },
+    "final_metrics": {
+        "actual_duration_s": 65.92,
+        "total_ai_processes": 10,
+        "total_detections": 0,
+        "avg_fps": 0.15
+    },
+    "detection_history": [
+        {
+            "timestamp": "2025-12-05 12:39:47",
+            "detection_time_ms": 6979.18,
+            "detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "timestamp": "2025-12-05 12:39:54",
+            "detection_time_ms": 6430.12,
+            "detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "timestamp": "2025-12-05 12:40:01",
+            "detection_time_ms": 6375.53,
+            "detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "timestamp": "2025-12-05 12:40:07",
+            "detection_time_ms": 6431.26,
+            "detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "timestamp": "2025-12-05 12:40:14",
+            "detection_time_ms": 6452.66,
+            "detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "timestamp": "2025-12-05 12:40:20",
+            "detection_time_ms": 6517.74,
+            "detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "timestamp": "2025-12-05 12:40:27",
+            "detection_time_ms": 6482.15,
+            "detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "timestamp": "2025-12-05 12:40:33",
+            "detection_time_ms": 6484.34,
+            "detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "timestamp": "2025-12-05 12:40:39",
+            "detection_time_ms": 6492.15,
+            "detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "timestamp": "2025-12-05 12:40:46",
+            "detection_time_ms": 6596.97,
+            "detections": 0,
+            "avg_confidence": 0.0
+        }
+    ]
+}
