@@ -1,0 +1,16 @@
+{
+    "device": "cpu",
+    "model_path": "/home/pi/Documents/AI/best (14).pt",
+    "test_duration_sec": 31.652992486953735,
+    "total_frames_processed": 26,
+    "inference_per_second_ips": 0.82,
+    "avg_latency_ms": 1193.9,
+    "avg_confidence": 0.1346,
+    "total_detections": 5,
+    "yolo_config": {
+        "img_size": 640,
+        "min_conf": 0.6,
+        "nms_iou": 0.52,
+        "only_class": 0
+    }
+}

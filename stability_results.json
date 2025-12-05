@@ -1,0 +1,284 @@
+{
+    "test_summary": "YOLOv8 Performance Stability Test",
+    "device": "cpu",
+    "iterations": 30,
+    "total_test_duration_sec": 2.51,
+    "avg_ips": 0.5,
+    "avg_latency_ms": 2014.55,
+    "latency_std_dev_ms": 17.15,
+    "temp_initial_C": 55.991,
+    "temp_final_C": 67.192,
+    "ips_change_percent": 1.31,
+    "raw_data": [
+        {
+            "iteration": 1,
+            "latency_ms": 2021.5907096862793,
+            "ips": 0.49465997009611556,
+            "temp_start_C": 55.991,
+            "temp_end_C": 58.426,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 2,
+            "latency_ms": 1997.1635341644287,
+            "ips": 0.500710123579529,
+            "temp_start_C": 58.426,
+            "temp_end_C": 60.374,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 3,
+            "latency_ms": 1991.750717163086,
+            "ips": 0.5020708622735338,
+            "temp_start_C": 60.374,
+            "temp_end_C": 60.374,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 4,
+            "latency_ms": 2014.1661167144775,
+            "ips": 0.4964833792513635,
+            "temp_start_C": 60.374,
+            "temp_end_C": 60.861,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 5,
+            "latency_ms": 1977.1673679351807,
+            "ips": 0.5057740767006145,
+            "temp_start_C": 60.861,
+            "temp_end_C": 62.322,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 6,
+            "latency_ms": 2039.0403270721436,
+            "ips": 0.4904267888786188,
+            "temp_start_C": 62.322,
+            "temp_end_C": 62.809,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 7,
+            "latency_ms": 2017.2226428985596,
+            "ips": 0.49573110014425276,
+            "temp_start_C": 62.809,
+            "temp_end_C": 62.322,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 8,
+            "latency_ms": 2032.907247543335,
+            "ips": 0.4919063578569308,
+            "temp_start_C": 62.322,
+            "temp_end_C": 62.809,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 9,
+            "latency_ms": 2019.0341472625732,
+            "ips": 0.4952863235898264,
+            "temp_start_C": 62.809,
+            "temp_end_C": 63.783,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 10,
+            "latency_ms": 2011.9695663452148,
+            "ips": 0.4970254106857695,
+            "temp_start_C": 63.783,
+            "temp_end_C": 64.27,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 11,
+            "latency_ms": 2051.1474609375,
+            "ips": 0.4875319883354163,
+            "temp_start_C": 64.27,
+            "temp_end_C": 63.296,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 12,
+            "latency_ms": 2006.6125392913818,
+            "ips": 0.49835231287508125,
+            "temp_start_C": 63.296,
+            "temp_end_C": 64.757,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 13,
+            "latency_ms": 2023.8182544708252,
+            "ips": 0.49411551545742605,
+            "temp_start_C": 64.757,
+            "temp_end_C": 65.244,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 14,
+            "latency_ms": 2006.9832801818848,
+            "ips": 0.4982602545195962,
+            "temp_start_C": 65.244,
+            "temp_end_C": 65.244,
+            "total_detections": 1,
+            "avg_confidence": 0.68478924036026
+        },
+        {
+            "iteration": 15,
+            "latency_ms": 1988.5287284851074,
+            "ips": 0.502884361525828,
+            "temp_start_C": 65.244,
+            "temp_end_C": 65.244,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 16,
+            "latency_ms": 2030.0414562225342,
+            "ips": 0.4926007776514981,
+            "temp_start_C": 65.244,
+            "temp_end_C": 66.705,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 17,
+            "latency_ms": 1998.744010925293,
+            "ips": 0.5003141945811574,
+            "temp_start_C": 66.705,
+            "temp_end_C": 65.244,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 18,
+            "latency_ms": 2013.9408111572266,
+            "ips": 0.4965389223258215,
+            "temp_start_C": 65.244,
+            "temp_end_C": 67.192,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 19,
+            "latency_ms": 2016.2746906280518,
+            "ips": 0.49596416829916606,
+            "temp_start_C": 67.192,
+            "temp_end_C": 67.679,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 20,
+            "latency_ms": 2035.4361534118652,
+            "ips": 0.49129519406627764,
+            "temp_start_C": 67.679,
+            "temp_end_C": 68.166,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 21,
+            "latency_ms": 2024.9130725860596,
+            "ips": 0.4938483599806478,
+            "temp_start_C": 68.166,
+            "temp_end_C": 68.166,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 22,
+            "latency_ms": 2024.418830871582,
+            "ips": 0.4939689281439185,
+            "temp_start_C": 68.166,
+            "temp_end_C": 68.166,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 23,
+            "latency_ms": 2020.5323696136475,
+            "ips": 0.4949190693694322,
+            "temp_start_C": 68.166,
+            "temp_end_C": 68.166,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 24,
+            "latency_ms": 2020.423173904419,
+            "ips": 0.4949458177454598,
+            "temp_start_C": 68.166,
+            "temp_end_C": 67.679,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 25,
+            "latency_ms": 2002.6307106018066,
+            "ips": 0.4993431862929396,
+            "temp_start_C": 67.679,
+            "temp_end_C": 68.653,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 26,
+            "latency_ms": 2044.5518493652344,
+            "ips": 0.4891047396574789,
+            "temp_start_C": 68.653,
+            "temp_end_C": 70.601,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 27,
+            "latency_ms": 1992.5556182861328,
+            "ips": 0.5018680486621172,
+            "temp_start_C": 70.601,
+            "temp_end_C": 69.627,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 28,
+            "latency_ms": 2018.8651084899902,
+            "ips": 0.49532779371671337,
+            "temp_start_C": 69.627,
+            "temp_end_C": 69.14,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 29,
+            "latency_ms": 1998.7232685089111,
+            "ips": 0.5003193867583383,
+            "temp_start_C": 69.14,
+            "temp_end_C": 70.114,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        },
+        {
+            "iteration": 30,
+            "latency_ms": 1995.4063892364502,
+            "ips": 0.5011510464205007,
+            "temp_start_C": 70.114,
+            "temp_end_C": 70.601,
+            "total_detections": 0,
+            "avg_confidence": 0.0
+        }
+    ]
+}

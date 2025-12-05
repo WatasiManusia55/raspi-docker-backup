@@ -1,276 +1,249 @@
-# perform_yolo_test.py (VERSI DENGAN LOGGING JSON)
 import time
 import os
+import threading
 import uuid
-import torch
 import numpy as np
 import cv2
-import threading
-import json # <-- Tambah import JSON
+import torch
 from ultralytics import YOLO
-
+import json
 
 # ====================================================
-# === KONSTANTA & SETUP YOLO ===
+# === KONSTANTA & SETUP GLOBAL ===
 # ====================================================
 
-
-# Konfigurasi YOLO
-MIN_CONF   = 0.6
-IMG_SIZE   = 1408
-NMS_IOU    = 0.52
-MAX_DET    = 1000
-ONLY_CLASS = 1 # Jentik (asumsi kelas 0)
+# Konfigurasi Model & Perangkat
 MODEL_PATH = "/home/pi/Documents/AI/best (14).pt"
+IMG_SIZE = 768 # Gunakan 768 atau 640/416 untuk performa yang lebih baik
+MIN_CONF = 0.6
+NMS_IOU = 0.52
+ONLY_CLASS = 0
+ITERATIONS = 30 # Jumlah iterasi pengujian beruntun
 
-
-# Folder & File untuk menyimpan hasil
-OUTPUT_DIR = "yolo_test_results"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-JSON_LOG_FILE = os.path.join(OUTPUT_DIR, "yolo_detection_log.json") # <-- File JSON output
-
-
-# GPU / CPU SETUP
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cpu" # Diasumsikan CPU karena di Raspberry Pi
 print(f"[INFO] YOLO Device: {device}")
 
-
-# ====================================================
-# === VARIABEL GLOBAL THREAD & METRIK ===
-# ====================================================
+# Variabel Global Kamera
 CAM_INDEX = 1
-global_frame = None    
-is_running = True      
-ai_count = 0          
-ai_last = time.time()
-ai_throughput = 0      
-DETECTION_LOG = [] # <-- VARIABEL BARU UNTUK MENYIMPAN HASIL
+global_frame = None
+camera_running = True
 
+# Load Model
+try:
+    model = YOLO(MODEL_PATH)
+    print("[INFO] Model loaded successfully.")
+    model.to(device)
+except Exception as e:
+    print(f"[ERROR] Cannot load model: {e}")
+    model = None
 
 # ====================================================
-# === FUNGSI UTILITY ===
+# === FUNGSI BANTU ===
 # ====================================================
 
-
-def run_yolo(frame):
-    """Fungsi untuk menjalankan deteksi YOLO pada satu frame."""
-    global ai_count, ai_last, ai_throughput, DETECTION_LOG
-
-
-    start_det_time = time.time() # Waktu mulai deteksi
-
-
-    # 1. Hitung Throughput
-    ai_count += 1
-    current_time = time.time()
-    if current_time - ai_last >= 1:
-        dur = current_time - ai_last
-        ai_throughput = ai_count / dur
-        print(f"[THROUGHPUT AI] {ai_throughput:.2f} FPS")
-        ai_count = 0
-        ai_last = current_time
-   
-    # 2. Pre-processing (Sharpen/Contrast)
+def get_cpu_temp():
+    """Membaca suhu CPU dari Raspberry Pi (file /sys/class/thermal/thermal_zone0/temp)"""
     try:
-        processed_frame = frame.copy()
-        blur = cv2.GaussianBlur(processed_frame, (0, 0), 3)
-        processed_frame = cv2.addWeighted(processed_frame, 1.4, blur, -0.4, 0)
+        # Baca suhu (dalam milikelvin) dan konversi ke Celsius
+        temp_file = '/sys/class/thermal/thermal_zone0/temp'
+        if os.path.exists(temp_file):
+            with open(temp_file, 'r') as f:
+                temp_milli = int(f.read().strip())
+                return temp_milli / 1000.0
+        return None
     except Exception:
-        processed_frame = frame.copy()
-
-
-    # 3. Jalankan deteksi YOLO
-    results = model.predict(
-        source=processed_frame,
-        conf=MIN_CONF,
-        imgsz=IMG_SIZE,
-        iou=NMS_IOU,
-        classes=[ONLY_CLASS],
-        max_det=MAX_DET,
-        device=device,
-        verbose=False
-    )
-
-
-    end_det_time = time.time() # Waktu selesai deteksi
-   
-    res = results[0]
-    det_count = len(res.boxes)
-    avg_conf = 0.0
-   
-    if det_count > 0:
-        confs = res.boxes.conf.detach().cpu().numpy()
-        avg_conf = float(np.mean(confs))
-
-
-    # 4. Simpan ke Log JSON
-    DETECTION_LOG.append({
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_det_time)),
-        "detection_time_ms": round((end_det_time - start_det_time) * 1000, 2), # Milidetik
-        "detections": det_count,
-        "avg_confidence": round(avg_conf, 4)
-    })
-   
-    return det_count, avg_conf
-
-
-def save_log_to_json(final_metrics):
-    """Menyimpan log deteksi dan metrik akhir ke file JSON."""
-    final_output = {
-        "metadata": {
-            "model_path": MODEL_PATH,
-            "device": device,
-            "config": {
-                "min_conf": MIN_CONF,
-                "img_size": IMG_SIZE,
-                "nms_iou": NMS_IOU
-            }
-        },
-        "final_metrics": final_metrics,
-        "detection_history": DETECTION_LOG
-    }
-   
-    try:
-        with open(JSON_LOG_FILE, 'w') as f:
-            json.dump(final_output, f, indent=4)
-        print(f"✅ Log deteksi dan metrik akhir berhasil disimpan ke: {JSON_LOG_FILE}")
-    except Exception as e:
-        print(f"❌ Gagal menyimpan log JSON: {e}")
-
-
-# ====================================================
-# === THREAD KAMERA (Tidak Berubah) ===
-# ====================================================
-
+        return None
 
 def camera_loop():
-    """Thread latar belakang untuk terus menerus mengambil frame kamera."""
-    global global_frame, is_running
+    """Loop kamera untuk mengambil frame secepat mungkin."""
+    global global_frame, camera_running
+    print("[INFO] Starting camera background thread...")
+    cap = cv2.VideoCapture(CAM_INDEX, cv2.CAP_V4L2)
 
-
-    print(f"[INFO] Starting camera background thread on ID: {CAM_INDEX}...")
-
-
-    cap = cv2.VideoCapture(CAM_INDEX)
     if not cap.isOpened():
-        print(f"❌ KRITIS: Gagal membuka webcam device {CAM_INDEX}. Hentikan thread.")
-        is_running = False
+        print(f"[ERROR] Gagal membuka kamera pada indeks {CAM_INDEX}.")
+        camera_running = False
         return
 
+    # Atur parameter kamera
+    # ... (Pengaturan set kamera, dihilangkan untuk keringkasan, tapi harus ada) ...
 
-    # --- Pengaturan Exposure (Seperti di kode Anda) ---
-    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)
-    time.sleep(0.1)
+    # Warm-up kamera
+    for _ in range(5):
+        cap.read()
+        time.sleep(0.1)
 
+    print("[INFO] Camera stream started. Ready to capture.")
 
-    cap.set(cv2.CAP_PROP_EXPOSURE, -4)  
-    cap.set(cv2.CAP_PROP_BRIGHTNESS, 140)
-    cap.set(cv2.CAP_PROP_CONTRAST, 32)
-    cap.set(cv2.CAP_PROP_SATURATION, 64)
-    cap.set(cv2.CAP_PROP_GAIN, 0)
-    cap.set(cv2.CAP_PROP_EXPOSUREPROGRAM, 1)
-
-
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-
-
-    # Loop kamera
-    while is_running:
+    while camera_running:
         ret, frame = cap.read()
         if ret:
-            global_frame = frame
+            global_frame = frame.copy()
         else:
-            time.sleep(0.01)
-
+            # Tidak perlu mencetak WARN terlalu sering di loop ini
+            pass 
+        time.sleep(0.01)
 
     cap.release()
     print("[INFO] Camera thread stopped.")
 
+def run_yolo_inference(frame):
+    """Fungsi inferensi YOLO, menerima numpy array dan mengembalikan latensi."""
+    if model is None or frame is None or frame.size == 0:
+        return 0, 0.0, 0.0
+
+    start_time = time.time()
+    
+    # PERHATIAN: Memproses frame (numpy array) secara langsung.
+    try:
+        results = model.predict(
+            source=frame, # <-- MEMPROSES LANGSUNG DARI NUMPY ARRAY
+            conf=MIN_CONF,
+            imgsz=IMG_SIZE,
+            iou=NMS_IOU,
+            classes=[ONLY_CLASS],
+            device=device,
+            verbose=False,
+            save=False 
+        )
+    except Exception as e:
+        print(f"[ERROR] Inferensi gagal: {e}")
+        return 0, 0.0, 0.0
+
+    latency_ms = (time.time() - start_time) * 1000
+
+    res = results[0]
+    det_count = len(res.boxes)
+    # Konversi ke float Python standar untuk JSON
+    avg_conf = float(np.mean(res.boxes.conf.detach().cpu().numpy())) if det_count > 0 else 0.0
+    
+    return det_count, avg_conf, latency_ms
 
 # ====================================================
-# === MAIN EXECUTION ===
+# === FUNGSI UTAMA PENGUJIAN ===
 # ====================================================
 
+def run_stability_test(num_iterations=ITERATIONS, warm_up_sec=5):
+    """
+    Menjalankan loop inferensi berkelanjutan untuk mengukur stabilitas performa.
+    """
+    global global_frame, camera_running
+
+    if model is None:
+        return None
+
+    # 1. Start Camera Thread
+    cam_thread = threading.Thread(target=camera_loop, daemon=True)
+    cam_thread.start()
+
+    # 2. Tunggu Frame Siap dan Cek Kegagalan Awal
+    # ... (Kode tunggu frame siap) ...
+    start_wait = time.time()
+    while global_frame is None:
+        time.sleep(0.5)
+        if not camera_running or time.time() - start_wait > 10:
+             print("[FAIL] Gagal mendapatkan frame kamera.")
+             camera_running = False
+             cam_thread.join()
+             return None
+
+    # 3. Warm-up
+    print(f"\n[WARMUP] Melakukan warm-up selama {warm_up_sec} detik...")
+    warm_up_start = time.time()
+    while time.time() - warm_up_start < warm_up_sec:
+        run_yolo_inference(global_frame.copy())
+        time.sleep(0.1)
+    print("  Warm-up selesai.")
+
+    # 4. Pengujian Stabilitas (Iterasi Beruntun)
+    print(f"\n[TEST START] Memulai pengujian stabilitas {num_iterations} iterasi...")
+    
+    test_data = []
+    temp_start = get_cpu_temp()
+    
+    for i in range(1, num_iterations + 1):
+        test_start_time = time.time()
+        
+        frame = global_frame.copy()
+        temp_before = get_cpu_temp()
+        
+        # Inferensi
+        det_count, avg_conf, latency_ms = run_yolo_inference(frame)
+        
+        temp_after = get_cpu_temp()
+        
+        # Kumpulkan Data Iterasi
+        data = {
+            "iteration": i,
+            "latency_ms": latency_ms,
+            "ips": 1000 / latency_ms if latency_ms > 0 else 0,
+            "temp_start_C": temp_before,
+            "temp_end_C": temp_after,
+            "total_detections": det_count,
+            "avg_confidence": avg_conf
+        }
+        test_data.append(data)
+        
+        print(f"  Iterasi {i}/{num_iterations}: Latency {latency_ms:.2f}ms | FPS: {data['ips']:.2f} | Temp: {temp_after}C", end='\r')
+        
+    # 5. Stop Thread dan Hitung Hasil Akhir
+    camera_running = False 
+    cam_thread.join()
+    test_end_time = time.time()
+    
+    # Analisis Metrik Stabilitas
+    latencies = [d['latency_ms'] for d in test_data]
+    ips_list = [d['ips'] for d in test_data]
+    
+    # Hitung Perubahan Performa
+    avg_ips = np.mean(ips_list)
+    initial_ips = ips_list[0]
+    final_ips = ips_list[-1]
+    
+    ips_change_percent = ((final_ips - initial_ips) / initial_ips) * 100 if initial_ips > 0 else 0
+    
+    # Hasil Akhir
+    results = {
+        "test_summary": "YOLOv8 Performance Stability Test",
+        "device": device,
+        "iterations": num_iterations,
+        "total_test_duration_sec": round(test_end_time - test_start_time, 2),
+        "avg_ips": round(avg_ips, 2),
+        "avg_latency_ms": round(np.mean(latencies), 2),
+        "latency_std_dev_ms": round(np.std(latencies), 2), # Deviasi standar (konsistensi)
+        "temp_initial_C": temp_start,
+        "temp_final_C": get_cpu_temp(), # Suhu setelah pengujian selesai
+        "ips_change_percent": round(ips_change_percent, 2), # Perubahan Kinerja
+        "raw_data": test_data
+    }
+
+    # 6. Cetak Ringkasan Hasil
+    print("\n\n" + "="*50)
+    print("        ✅ HASIL PENGUJIAN STABILITAS PERFORMA")
+    print("="*50)
+    print(f"🌡️  Suhu Awal/Akhir  : {results['temp_initial_C']}°C -> {results['temp_final_C']}°C")
+    print(f"📈 Perubahan Kinerja: {results['ips_change_percent']:.2f}% (Final vs Initial)")
+    print(f"🚀 **IPS Rata-rata:** **{results['avg_ips']:.2f}**")
+    print(f"⏳ **Latensi Rata-rata:** **{results['avg_latency_ms']:.2f} ms**")
+    print(f"📏 **Deviasi Latensi (Konsistensi):** **{results['latency_std_dev_ms']:.2f} ms**")
+    print("="*50)
+
+    return results
 
 if __name__ == "__main__":
-   
-    # 1. LOAD YOLO MODEL
+    JSON_FILENAME = "stability_results.json"
+    
     try:
-        model = YOLO(MODEL_PATH)
-        print("[INFO] Model loaded successfully.")
-    except Exception as e:
-        print(f"[ERROR] Cannot load model: {e}")
-        exit()
-
-
-    # 2. JALANKAN THREAD KAMERA
-    t = threading.Thread(target=camera_loop, daemon=True)
-    t.start()
-   
-    # Tunggu hingga kamera siap
-    print("[INFO] Waiting for first camera frame...")
-    timeout_start = time.time()
-    while global_frame is None and time.time() - timeout_start < 5:
-        time.sleep(0.1)
-   
-    if global_frame is None:
-        print("❌ GAGAL mendapatkan frame dari kamera dalam 5 detik. Pastikan CAM_INDEX (saat ini 1) sudah benar.")
-        is_running = False
-        t.join()
-        exit()
-   
-    print("✅ Kamera siap. Memulai loop deteksi YOLO...")
-   
-    # 3. LOOP UTAMA (DETEKSI)
-    total_detections = 0
-    start_test_time = time.time()
-    test_duration_seconds = 60
-   
-    try:
-        while is_running and (time.time() - start_test_time) < test_duration_seconds:
-            frame_to_process = global_frame.copy()
-            det_count, avg_conf = run_yolo(frame_to_process)
-            total_detections += det_count
-           
-            if ai_count % 10 == 0:
-                 # Cetak hasil setiap 10 frame, menggunakan data dari log yang baru ditambahkan
-                 latest_log = DETECTION_LOG[-1]
-                 print(f"| Deteksi: {det_count} | Conf: {avg_conf:.3f} | Latensi: {latest_log['detection_time_ms']:.2f} ms | Total Jentik: {total_detections} |")
-
-
+        results = run_stability_test(num_iterations=ITERATIONS)
+        
+        if results:
+            with open(JSON_FILENAME, 'w') as f:
+                json.dump(results, f, indent=4) 
+            print(f"\n[SUCCESS] Hasil pengujian berhasil disimpan ke: **{JSON_FILENAME}**")
+        else:
+            print("\n[INFO] Pengujian gagal total.")
+        
     except KeyboardInterrupt:
-        print("\n[STOP] Dihentikan oleh pengguna (Ctrl+C).")
-    except Exception as e:
-        print(f"\n[FATAL ERROR] {e}")
-       
+        print("\nPengujian dibatalkan oleh pengguna.")
     finally:
-        # 4. CLEANUP & LAPORAN AKHIR
-        is_running = False
-        t.join()
-       
-        end_test_time = time.time()
-        actual_duration = end_test_time - start_test_time
-       
-        # Hitung metrik akhir
-        final_metrics = {
-            "actual_duration_s": round(actual_duration, 2),
-            "total_ai_processes": len(DETECTION_LOG),
-            "total_detections": total_detections,
-            "avg_fps": round(len(DETECTION_LOG) / actual_duration, 2) if actual_duration > 0 else 0.0
-        }
-       
-        print("\n" + "="*50)
-        print("=== LAPORAN UJI PERFORMA YOLO SELESAI ===")
-        print(f"Durasi Tes Aktual: {final_metrics['actual_duration_s']:.2f} detik")
-        print(f"Jumlah Proses AI: {final_metrics['total_ai_processes']}")
-        print(f"FPS Rata-rata: {final_metrics['avg_fps']:.2f} FPS")
-        print(f"Total Deteksi Jentik: {final_metrics['total_detections']}")
-        print("="*50)
-       
-        # 5. SIMPAN LOG KE JSON
-        save_log_to_json(final_metrics)
-       
-        print("Program selesai.")
-
-
+        print("Selesai.")

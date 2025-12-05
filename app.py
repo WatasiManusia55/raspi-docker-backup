@@ -115,7 +115,7 @@ except Exception as e:
 # ===============================
 # CAMERA THREAD (FAST MODE) - DARI KODE KEDUA
 # ===============================
-CAM_INDEX = 0
+CAM_INDEX = 1
 global_frame = None
 
 def camera_loop():
@@ -131,12 +131,12 @@ def camera_loop():
     cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  # manual mode
     time.sleep(0.1)
 
-    cap.set(cv2.CAP_PROP_EXPOSURE, -4)      # coba -6 s/d -3
-    cap.set(cv2.CAP_PROP_BRIGHTNESS, 140)
-    cap.set(cv2.CAP_PROP_CONTRAST, 32)
-    cap.set(cv2.CAP_PROP_SATURATION, 64)
-    cap.set(cv2.CAP_PROP_GAIN, 0)
-    cap.set(cv2.CAP_PROP_EXPOSUREPROGRAM, 1)
+    cap.set(cv2.CAP_PROP_EXPOSURE, -6)      # coba -6 s/d -3
+    cap.set(cv2.CAP_PROP_BRIGHTNESS, 30)
+    cap.set(cv2.CAP_PROP_CONTRAST, 40)
+    cap.set(cv2.CAP_PROP_SATURATION, 40)
+    cap.set(cv2.CAP_PROP_GAIN, 10)
+    # cap.set(cv2.CAP_PROP_EXPOSUREPROGRAM, 1)
 
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
