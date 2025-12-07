@@ -8,7 +8,7 @@ import spidev
 import board
 import adafruit_dht
 import math
-import json 
+import json
 from flask import Flask, render_template, jsonify, request, Response
 from flask_cors import CORS
 from flask import stream_with_context
@@ -16,11 +16,11 @@ import socket, requests, psutil, subprocess
 import os
 import uuid
 import torch
-from ultralytics import YOLO 
+from ultralytics import YOLO
 import psycopg2
 from datetime import datetime
 from dotenv import load_dotenv
-import numpy as np 
+import numpy as np
 import cv2
 import threading
 from functools import wraps
@@ -37,6 +37,13 @@ ai_count = 0
 ai_last = time.time()
 ai_throughput = 0
 throughput_log = []
+
+# ===================================================
+# 📌 PERUBAHAN 1: VARIABEL GLOBAL UNTUK DHT22 (DATA CACHE)
+# ===================================================
+global_temp_c = None
+global_humidity = None
+DHT_READ_INTERVAL = 3.0 # Baca hanya setiap 3 detik, untuk stabilitas sensor
 
 # --- SETUP SENSOR & PERANGKAT KERAS ---
 spi = spidev.SpiDev()
@@ -77,7 +84,7 @@ MQ2_RATIO_CLEAN_AIR = 9.83
 A_MQ135 = 1000
 B_MQ135 = -2.862
 MQ135_RATIO_CLEAN_AIR = 3.6
-R0_MQ2 = 25.0 
+R0_MQ2 = 25.0
 R0_MQ135 = 25.0
 
 # C. Assign channel MCP3008
@@ -115,28 +122,53 @@ except Exception as e:
 # ===============================
 # CAMERA THREAD (FAST MODE) - DARI KODE KEDUA
 # ===============================
-CAM_INDEX = 1
+CAM_INDEX = 0
 global_frame = None
 
 def camera_loop():
     global global_frame
 
     print("[INFO] Starting camera background thread...")
-
-    cap = cv2.VideoCapture(CAM_INDEX)
+    
+    # 🔴 PERBAIKAN 1: Paksa backend V4L2
+    # Gunakan V4L2 agar kontrol pengaturan kamera stabil di Linux/Raspi
+    cap = cv2.VideoCapture(CAM_INDEX + cv2.CAP_V4L2) 
+    
+    # Cek jika kamera gagal dibuka
+    if not cap.isOpened():
+        print(f"[ERROR] Cannot open camera index {CAM_INDEX}. Check index or camera connection.")
+        return
 
     # =====================================================
-    # EXPOSURE FIX — MANUAL MODE (ANTI GELAP)
+    # EXPOSURE FIX — MANUAL MODE (ANTI GELAP & WARNA)
     # =====================================================
-    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  # manual mode
+    
+    # 🔴 PERBAIKAN 2: AUTO EXPOSURE HARUS 0
+    # Nilai 1 sering kali mengaktifkan shutter priority, bukan manual penuh.
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1) # 0 = Manual Mode
     time.sleep(0.1)
 
-    cap.set(cv2.CAP_PROP_EXPOSURE, -6)      # coba -6 s/d -3
-    cap.set(cv2.CAP_PROP_BRIGHTNESS, 30)
-    cap.set(cv2.CAP_PROP_CONTRAST, 40)
-    cap.set(cv2.CAP_PROP_SATURATION, 40)
-    cap.set(cv2.CAP_PROP_GAIN, 10)
-    # cap.set(cv2.CAP_PROP_EXPOSUREPROGRAM, 1)
+    # EXPOSURE: Nilai 400 terlalu tinggi, bisa menyebabkan driver menolak.
+    # Coba batas yang lebih umum (250) atau 10000 jika kamera mendukung range tinggi.
+    cap.set(cv2.CAP_PROP_EXPOSURE, 300) 
+    
+    # BRIGHTNESS & CONTRAST
+    cap.set(cv2.CAP_PROP_BRIGHTNESS, 300)
+    cap.set(cv2.CAP_PROP_CONTRAST, 200)
+    
+    # 🔴 PERBAIKAN 3: WHITE BALANCE & SATURATION (Anti Abu-abu)
+    # White Balance: Matikan Auto WB (0) agar warna tidak bergeser ke biru/abu-abu.
+    cap.set(cv2.CAP_PROP_AUTO_WB, 0) 
+    
+    # SATURATION: Nilai 40 sangat rendah (pudar). Naikkan agresif (misal 150-200) agar warna muncul.
+    cap.set(cv2.CAP_PROP_SATURATION, 200) 
+    
+    # GAIN (Sensitivitas): Coba naikkan sedikit jika masih gelap.
+    cap.set(cv2.CAP_PROP_GAIN, 50)
+    
+    # Tambahkan kontrol FOKUS (penting agar tidak blur)
+    cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+    cap.set(cv2.CAP_PROP_FOCUS, 20) # Nilai ini mungkin perlu dicoba-coba (0-255)
 
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
@@ -148,6 +180,7 @@ def camera_loop():
     print("  Contrast      :", cap.get(cv2.CAP_PROP_CONTRAST))
     print("  Saturation    :", cap.get(cv2.CAP_PROP_SATURATION))
     print("  Gain          :", cap.get(cv2.CAP_PROP_GAIN))
+    print("  Focus         :", cap.get(cv2.CAP_PROP_FOCUS))
     print("========================================")
 
     # Loop kamera
@@ -155,10 +188,50 @@ def camera_loop():
         ret, frame = cap.read()
         if ret:
             global_frame = frame
+        # Tambahkan jeda kecil jika ret False
+        else:
+            time.sleep(0.01)
 
 # Jalankan thread kamera
 t = threading.Thread(target=camera_loop, daemon=True)
 t.start()
+
+# ===================================================
+# 📌 PERUBAHAN 2: FUNGSI LOOP KHUSUS UNTUK DHT22 (STABILITAS)
+# ===================================================
+
+def dht_loop():
+    global global_temp_c, global_humidity
+    print("[INFO] Starting DHT22 background thread...")
+    while True:
+        try:
+            temp_c = dhtDevice.temperature
+            humidity = dhtDevice.humidity
+
+            # Koreksi Kelembaban
+            if humidity is not None:
+                humidity = humidity - HUMIDITY_CORRECTION_FACTOR
+                if humidity < 0:
+                    humidity = 0.0
+
+            # Simpan nilai stabil ke global
+            global_temp_c = temp_c
+            global_humidity = humidity
+           
+        except RuntimeError as e:
+            # Ini adalah kegagalan umum DHT. Kita abaikan, dan global_temp_c
+            # akan menahan nilai terakhir yang valid.
+            # print(f"[DHT WARN] Gagal baca DHT22 (RuntimeError): {e}")
+            pass
+        except Exception as e:
+            print(f"[DHT ERROR] Kesalahan tak terduga saat baca DHT22: {e}")
+           
+        time.sleep(DHT_READ_INTERVAL) # Tunda 3 detik
+
+# Jalankan thread DHT
+t_dht = threading.Thread(target=dht_loop, daemon=True)
+t_dht.start()
+print(f"[INFO] DHT22 Thread berjalan dengan interval {DHT_READ_INTERVAL}s")
 
 # --- Variabel Global untuk Metrik & Kalibrasi ---
 app = Flask(__name__)
@@ -183,7 +256,7 @@ def add_security_headers(response):
     return response
 
 load_dotenv()
-API_KEY = os.getenv("API_KEY") 
+API_KEY = os.getenv("API_KEY")
 request_count = 0
 start_time = time.time()
 try:
@@ -196,7 +269,7 @@ except Exception:
 
 # --- Setup Cache File ---
 CACHE_FILE = "sensor_cache.json"
-MAX_CACHE_SIZE = 1000 
+MAX_CACHE_SIZE = 1000
 
 # --- Database Credentials ---
 DB_HOST = os.getenv("DB_HOST", "10.218.161.79")  
@@ -267,7 +340,7 @@ def save_cache(data_list):
              
         with open(CACHE_FILE, 'w') as f:
             # Menggunakan default=str untuk menangani objek datetime jika ada
-            json.dump(data_list, f, indent=4, default=str) 
+            json.dump(data_list, f, indent=4, default=str)
     except Exception as e:
         print(f"❌ Gagal menyimpan cache ke file: {e}")
 
@@ -280,14 +353,14 @@ def read_adc(channel):
     if channel < 0 or channel > 7:
         return -1
     r = spi.xfer2([1, (8+channel)<<4, 0])
-    adc_out = ((r[1] & 3) << 8) + r[2] 
+    adc_out = ((r[1] & 3) << 8) + r[2]
     return adc_out
 
 def read_resistance(adc_val, V_ref=V_REF, R_load=R_LOAD):
     """Menghitung Rs (Resistansi Sensor) dari nilai ADC."""
     ADC_MAX = 1023.0
     V_out = (adc_val * V_ref) / ADC_MAX
-    
+   
     if V_out <= 0:
         return float('inf')
     Rs = R_load * ((V_ref / V_out) - 1.0)
@@ -312,18 +385,18 @@ def resistance_to_ppm_mq135(Rs, R0):
 
 def adc_to_lux(adc_val):
     """Konversi LDR (dengan LOGIKA KOREKSI KUADRATIK)."""
-    MAX_LUX_SCALE = 500.0 
+    MAX_LUX_SCALE = 500.0
     ADC_MAX = 1023.0
 
     if adc_val < 0 or adc_val >= ADC_MAX:
         return 0.0
-    
+   
     inverted_adc = ADC_MAX - adc_val
     normalized_value = inverted_adc / ADC_MAX
     # Rumus kuadratik untuk sensitivitas tinggi di kondisi gelap
     lux = (normalized_value ** 2) * MAX_LUX_SCALE
-    
-    return max(0.0, lux) 
+   
+    return max(0.0, lux)
 
 def calibrate_sensor(channel, ratio_clean_air, samples=50, delay=0.2):
     """Menghitung R0 (Resistansi di Udara Bersih)."""
@@ -355,7 +428,7 @@ def read_ph_corrected():
     """Baca pH dengan logika yang diperbaiki"""
     adc = read_adc(CH_PH)
     voltage = (adc * V_REF) / 1023.0
-    
+   
     # LOGIKA YANG DIPERBAIKI
     if voltage < 1.60:  # pH < 5 (ASAM)
         ph_est = 4.5
@@ -363,13 +436,13 @@ def read_ph_corrected():
         reason = f"Voltage {voltage:.3f}V < 1.60V (pH < 5)"
     elif voltage > 1.65:  # pH > 8 (BASA)
         ph_est = 8.5
-        status = "🔵 BASA" 
+        status = "🔵 BASA"
         reason = f"Voltage {voltage:.3f}V > 1.65V (pH > 8)"
     else:  # pH 6-7.8 (NETRAL)
         ph_est = 7.0
         status = "🟢 NETRAL"
         reason = f"Voltage {voltage:.3f}V dalam range 1.60V-1.65V (pH 6-7.8)"
-    
+   
     return ph_est, status
 
 def read_ph_stable(samples=5, delay=0.1):
@@ -381,15 +454,15 @@ def read_ph_stable(samples=5, delay=0.1):
             voltage = (ph_adc * V_REF) / 1023.0
             voltages.append(voltage)
         time.sleep(delay)
-    
+   
     if not voltages:
         return 7.0, "🟡 ERROR", "Gagal membaca sensor"
-    
+   
     avg_voltage = sum(voltages) / len(voltages)
-    
+   
     # GUNAKAN LOGIKA YANG SUDAH DIPERBAIKI
     ph_val, ph_status = read_ph_corrected()
-    
+   
     return ph_val, ph_status, f"Voltage {avg_voltage:.3f}V"
 
 # ====================================================
@@ -449,6 +522,8 @@ def network_analysis():
 def get_all_sensor_readings():
     """Membaca semua sensor dan mengembalikan data dalam dictionary."""
     global sensor_count, sensor_last, sensor_throughput
+    # 📌 Gunakan global_temp_c dan global_humidity yang sudah diupdate oleh dht_loop
+    global global_temp_c, global_humidity
 
     # === HITUNG THROUGHPUT SENSOR ===
     sensor_count += 1
@@ -462,29 +537,21 @@ def get_all_sensor_readings():
         sensor_last = current_time
     # === END THROUGHPUT ===
 
-    # --- DHT22 (Suhu & Kelembaban) ---
-    temperature_c, humidity = None, None
-    try:
-        temperature_c = dhtDevice.temperature
-        humidity = dhtDevice.humidity
-        
-        # Koreksi Kelembaban
-        if humidity is not None:
-            humidity = humidity - HUMIDITY_CORRECTION_FACTOR 
-            if humidity < 0:
-                humidity = 0.0
-    except RuntimeError:
-        pass 
-    except Exception:
-        pass
+    # ==================================================
+    # 📌 PERUBAHAN 3: AMBIL DARI GLOBAL (BUKAN BACA LANGSUNG)
+    # Ini menjamin tidak ada RuntimeError di sini, hanya nilai None jika
+    # dht_loop() belum berhasil membaca sama sekali.
+    # ==================================================
+    temperature_c = global_temp_c
+    humidity = global_humidity
 
     # --- MQ2 (Gas Mudah Terbakar) ---
     mq2_adc = read_adc(CH_MQ2_AO)
     Rs_mq2 = read_resistance(mq2_adc)
     mq2_ppm = resistance_to_ppm_mq2(Rs_mq2, R0_MQ2)
-    
+   
     if mq2_ppm is not None and mq2_ppm >= 30:
-        mq2_status = "Gas Terdeteksi" 
+        mq2_status = "Gas Terdeteksi"
     elif mq2_ppm is not None:
         mq2_status = "Aman"
     else:
@@ -504,8 +571,8 @@ def get_all_sensor_readings():
 
     # --- LDR (Cahaya) ---
     ldr_adc = read_adc(CH_LDR)
-    ldr_lux = adc_to_lux(ldr_adc) 
-    
+    ldr_lux = adc_to_lux(ldr_adc)
+   
     # 📌 LOGIKA LDR BERDASARKAN LUX (3-TIER BARU)
     if ldr_lux < 250:
         ldr_status = "Rendah"
@@ -521,6 +588,13 @@ def get_all_sensor_readings():
     # --- NETWORK ---
     net_info = network_analysis()
 
+    # --- Status Jentik Default ---
+    # Inisialisasi dengan nilai default
+    jentik_status = "--"
+    jentik_image = None
+    jentik_count = 0
+    jentik_confidence = 0.0
+
     return {
         # Data untuk tampilan Web (dengan format string)
         "temp": f"{temperature_c:.1f}" if temperature_c is not None else "Error",
@@ -531,10 +605,14 @@ def get_all_sensor_readings():
         "mq135_ppm": f"{mq135_ppm}" if mq135_ppm is not None else "Error",
         "ldr_status": ldr_status,  # Mengirim marker status Lux ("Rendah", "Ideal", "Tinggi")
         "ldr_lux": f"{ldr_lux:.2f}",
-        "ldr_adc": f"{ldr_adc}", 
+        "ldr_adc": f"{ldr_adc}",
         "ph_val": f"{ph_val:.1f}",  
-        "ph_status": ph_status,  
-        
+        "ph_status": ph_status,
+        "jentik_status": jentik_status,  # Status default
+        "jentik_image": jentik_image,    # Path gambar default
+        "jentik_count": jentik_count,    # Jumlah jentik default
+        "jentik_confidence": jentik_confidence,  # Confidence default
+       
         # Data MENTAH untuk penyimpanan DB (nilai float/None)
         "temp_raw": temperature_c,
         "hum_raw": humidity,
@@ -553,7 +631,7 @@ def get_all_sensor_readings():
 def run_yolo(image_path, original_filename):
     """Fungsi AI dari kode kedua yang lebih optimal"""
     global ai_count, ai_last, ai_throughput
-    
+   
     current_time = time.time()
     if current_time - ai_last >= 1:
         dur = current_time - ai_last
@@ -700,7 +778,7 @@ def index():
     print("=" * 40)
 
     data_for_template = {k: v for k, v in data.items() if not k.endswith('_raw')}
-    
+   
     return render_template(
         "index.html",
         **data_for_template,
@@ -717,21 +795,37 @@ def rate_test():
 @require_api_key
 def get_data_json():
     """Endpoint untuk AJAX, mengembalikan data sensor mentah dalam JSON."""
-    
+   
     data = get_all_sensor_readings()
     save_sensor_data(data)
 
     data_for_json = {k: v for k, v in data.items() if not k.endswith('_raw')}
-    
+   
+    # TAMBAHKAN: Pastikan data jentik ada di response
     if 'jentik_status' not in data_for_json:
         data_for_json['jentik_status'] = "-- Belum dicek"
+    
+    # Pastikan field statistik jentik ada
+    if 'jentik_count' not in data_for_json:
+        data_for_json['jentik_count'] = 0
+    
+    if 'jentik_confidence' not in data_for_json:
+        data_for_json['jentik_confidence'] = 0.0
 
     return jsonify(data_for_json)
+
+# ====================================================
+# 📌 PERUBAHAN UTAMA: FUNGSI trigger_ai DENGAN DATA STATISTIK JENTIK
+# ====================================================
+
+# ====================================================
+# 📌 PERUBAHAN UTAMA: FUNGSI trigger_ai DENGAN DEHAZING (ANTI KABUT)
+# ====================================================
 
 @app.route("/trigger_ai", methods=["POST"])
 @require_api_key
 def trigger_ai():
-    """Trigger AI (YOLO) dengan ambil gambar dari kamera - VERSI OPTIMAL"""
+    """Trigger AI (YOLO) dengan ambil gambar dari kamera - VERSI DENGAN DEHAZING"""
     global global_frame
 
     if model is None:
@@ -745,15 +839,36 @@ def trigger_ai():
 
     # 1️⃣ Ambil gambar dari frame kamera yang sudah tersedia (SUPER FAST)
     frame = global_frame.copy()
-    cv2.imwrite(filepath, frame)
-
-    # 2️⃣ Pre-processing (sharpen/contrast)
+    
+    # 2️⃣ 🔴 PERBAIKAN KRITIS: Post-processing ANTI-KABUT (CLAHE + Sharpening)
     try:
-        blur = cv2.GaussianBlur(frame, (0, 0), 3)
-        sharp = cv2.addWeighted(frame, 1.4, blur, -0.4, 0)
-        cv2.imwrite(filepath, sharp)
+        # Pisahkan Saluran Warna ke ruang LAB (Lightness/Luminosity, a, b)
+        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        
+        # Terapkan CLAHE (Contrast Limited Adaptive Histogram Equalization) pada saluran L
+        # CLAHE efektif melawan haze/kabut putih dengan meningkatkan kontras lokal.
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        cl = clahe.apply(l)
+        
+        # Gabungkan kembali dan konversi ke BGR
+        limg = cv2.merge((cl, a, b))
+        processed_frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        
+        # Sharpening akhir untuk kejernihan
+        kernel = np.array([[0, -1, 0], 
+                           [-1, 5, -1],
+                           [0, -1, 0]])
+        sharp = cv2.filter2D(processed_frame, -1, kernel)
+        
+        # Simpan versi yang sudah diproses untuk YOLO
+        cv2.imwrite(filepath, sharp) 
+        print("[IMAGE INFO] Post-processing (CLAHE + Sharpening) berhasil.")
+        
     except Exception as e:
-        print(f"[IMAGE WARN] preprocessing gagal: {e}")
+        # Jika terjadi error saat post-processing, gunakan frame asli (fallback)
+        print(f"[IMAGE WARN] Post-processing GAGAL: {e}. Menggunakan frame asli.")
+        cv2.imwrite(filepath, frame) 
 
     # 3️⃣ Jalankan deteksi YOLO
     try:
@@ -763,7 +878,7 @@ def trigger_ai():
 
     # 4️⃣ Simpan ke DB
     try:
-        save_ai_data("jentik", det_count) 
+        save_ai_data("jentik", det_count)
     except Exception as e:
         print(f"[DB WARN] Gagal simpan hasil AI: {e}")
 
@@ -774,16 +889,25 @@ def trigger_ai():
     print(f"Avg Confidence : {round(avg_conf,3)}")
     print("================================\n")
 
-    status = "✅ Ada jentik terdeteksi." if det_count > 0 else "❌ Tidak ada jentik terdeteksi."
-    
+    # 6️⃣ Tentukan status berdasarkan jumlah deteksi
+    if det_count > 0:
+        status = "Terdeteksi"
+        jentik_status = f"{det_count} Jentik Terdeteksi"
+    else:
+        status = "Tidak Terdeteksi"
+        jentik_status = "Tidak Terdeteksi"
+   
+    # 7️⃣ Return response DENGAN DATA STATISTIK JENTIK
     return jsonify({
         "status": status,
         "num_detections": det_count,
         "confidence": round(avg_conf, 3),
         "confidence_list": conf_list,
         "result_image": f"/static/{result_rel}",  
-        "uploaded_image": f"/static/{uploaded_rel}", 
-        "jentik_status": status,  
+        "uploaded_image": f"/static/{uploaded_rel}",
+        "jentik_status": jentik_status,
+        "jentik_count": det_count,
+        "jentik_confidence": avg_conf,
         "params": {
             "conf": MIN_CONF, "iou": NMS_IOU, "imgsz": IMG_SIZE,
             "max_det": MAX_DET, "device": device
@@ -801,9 +925,9 @@ def get_latest_detection():
     try:
         cur = conn.cursor()
         cur.execute("""
-            SELECT label, jumlah_deteksi, timestamp 
-            FROM detection_data 
-            ORDER BY timestamp DESC 
+            SELECT label, jumlah_deteksi, timestamp
+            FROM detection_data
+            ORDER BY timestamp DESC
             LIMIT 1;
         """)
         result = cur.fetchone()
@@ -843,14 +967,14 @@ def get_db_connection():
 def get_data_value(data, key):
     raw_key = key + "_raw"
     val = data.get(raw_key)
-    
+   
     if val is None:
-        return None 
-    
+        return None
+   
     try:
         return float(val)
     except (TypeError, ValueError):
-        return None 
+        return None
 
 def forward_cached_data():
     """
@@ -860,7 +984,7 @@ def forward_cached_data():
     cache_data = load_cache()
     if not cache_data:
         return
-        
+       
     print(f"🔄 Mencoba mengirim {len(cache_data)} entri data dari cache...")
     conn = get_db_connection()
     if not conn:
@@ -871,30 +995,30 @@ def forward_cached_data():
         cur = conn.cursor()
         success_count = 0
         insert_query = """
-        INSERT INTO sensor_data 
-        (suhu, kelembaban, ph, cahaya, gas_mq2, gas_mq135, 
+        INSERT INTO sensor_data
+        (suhu, kelembaban, ph, cahaya, gas_mq2, gas_mq135,
         status_mq2, status_mq135, waktu, gas)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
-        
+       
         for item in cache_data:
             try:
                 waktu_obj = datetime.fromisoformat(item['waktu'])
-                
+               
                 cur.execute(insert_query, (
-                    item['suhu'], item['kelembaban'], item['ph'], item['cahaya'], 
-                    item['gas_mq2'], item['gas_mq135'], item['status_mq2'], 
+                    item['suhu'], item['kelembaban'], item['ph'], item['cahaya'],
+                    item['gas_mq2'], item['gas_mq135'], item['status_mq2'],
                     item['status_mq135'], waktu_obj, item['gas']
                 ))
                 success_count += 1
             except Exception as e:
                 print(f"⚠ Item cache ke-{success_count+1} gagal di-forward: {e}. Menghentikan proses.")
-                break 
+                break
 
         if success_count > 0:
             conn.commit()
             print(f"✅ Berhasil mem-forward {success_count} entri dari cache ke DB.")
-            
+           
             remaining_cache = cache_data[success_count:]
             save_cache(remaining_cache)
             if not remaining_cache:
@@ -911,24 +1035,24 @@ def forward_cached_data():
 
 def save_sensor_data(data):
     """
-    Mencoba menyimpan data sensor ke PostgreSQL. 
+    Mencoba menyimpan data sensor ke PostgreSQL.
     Jika gagal (tidak ada koneksi), simpan ke cache lokal.
     """
     conn = get_db_connection()
     waktu = datetime.now()
-    
+   
     data_to_store = {
-        'suhu': get_data_value(data, 'temp'), 
+        'suhu': get_data_value(data, 'temp'),
         'kelembaban': get_data_value(data, 'hum'),
-        'ph': get_data_value(data, 'ph_val'), 
+        'ph': get_data_value(data, 'ph_val'),
         'ph_status': data.get('ph_status'),  
         'cahaya': get_data_value(data, 'ldr_lux'),
-        'gas_mq2': get_data_value(data, 'mq2_ppm'), 
+        'gas_mq2': get_data_value(data, 'mq2_ppm'),
         'gas_mq135': get_data_value(data, 'mq135_ppm'),
-        'status_mq2': data.get('mq2_status'), 
+        'status_mq2': data.get('mq2_status'),
         'status_mq135': data.get('mq135_status'),
-        'waktu': waktu.isoformat(), 
-        'gas': get_data_value(data, 'mq135_ppm') 
+        'waktu': waktu.isoformat(),
+        'gas': get_data_value(data, 'mq135_ppm')
     }
 
     # === A. Coba Simpan ke Database ===
@@ -936,27 +1060,27 @@ def save_sensor_data(data):
         try:
             cur = conn.cursor()
             insert_query = """
-            INSERT INTO sensor_data 
-            (suhu, kelembaban, ph, cahaya, gas_mq2, gas_mq135, 
+            INSERT INTO sensor_data
+            (suhu, kelembaban, ph, cahaya, gas_mq2, gas_mq135,
             status_mq2, status_mq135, waktu, gas)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
-            
+           
             cur.execute(insert_query, (
-                data_to_store['suhu'], data_to_store['kelembaban'], 
-                data_to_store['ph'], data_to_store['cahaya'], 
+                data_to_store['suhu'], data_to_store['kelembaban'],
+                data_to_store['ph'], data_to_store['cahaya'],
                 data_to_store['gas_mq2'], data_to_store['gas_mq135'],
                 data_to_store['status_mq2'], data_to_store['status_mq135'],
                 waktu, data_to_store['gas']
             ))
-            
+           
             conn.commit()
             cur.close()
             conn.close()
             print(f"✅ Data sensor berhasil disimpan ke DB.")
-            
+           
             # Coba kirim data yang tersimpan di cache
-            forward_cached_data() 
+            forward_cached_data()
             return
 
         except psycopg2.Error as e:
@@ -965,11 +1089,11 @@ def save_sensor_data(data):
                 conn.rollback()
                 conn.close()
             # Jatuh ke mekanisme caching jika DB error
-    
+   
     # === B. Simpan ke Cache Lokal (Fallback) ===
     print("⚠ Tidak bisa konek ke database atau terjadi error DB. Menyimpan data ke cache.")
     cache_data = load_cache()
-    data_to_store['waktu'] = str(data_to_store['waktu']) 
+    data_to_store['waktu'] = str(data_to_store['waktu'])
     cache_data.append(data_to_store)
     save_cache(cache_data)
 

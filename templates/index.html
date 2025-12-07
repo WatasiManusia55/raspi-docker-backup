@@ -6,6 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Siling-AI</title>
 
+    <!-- FAVICON -->
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" href="/static/favicon.ico">
+    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
         crossorigin="anonymous">
 
@@ -118,6 +123,51 @@
         .btn-close:focus {
             outline: none !important;
             box-shadow: none !important;
+        }
+
+        /* Style untuk statistik jentik */
+        .jentik-stats {
+            font-size: 0.85rem;
+            margin-top: 5px;
+        }
+
+        .confidence-badge {
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }
+
+        .count-badge {
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: white;
+        }
+
+        .count-danger {
+            background-color: #dc3545;
+        }
+
+        .count-success {
+            background-color: #198754;
+        }
+
+        .count-info {
+            background-color: #0dcaf0;
+        }
+
+        .last-updated {
+            font-size: 0.7rem;
+            color: #6c757d;
+            margin-top: 3px;
+        }
+
+        /* Style untuk icon status jentik */
+        .jentik-status-icon {
+            font-size: 1.2rem;
+            margin-right: 5px;
         }
     </style>
 </head>
@@ -279,9 +329,30 @@
                         <div class="text-danger icon-lg">🦟</div>
                         <h5 class="card-title text-muted">DETEKSI JENTIK (AI)</h5>
                         <p class="text-secondary mb-1">Status Terakhir:</p>
-                        <h3 id="dataJentikStatus" class="fw-bold text-dark">--</h3>
+                        <h3 id="dataJentikStatus" class="fw-bold text-dark mb-2">--</h3>
+
+                        <!-- Bagian Statistik Jentik -->
+                        <div class="jentik-stats" id="jentikStatsContainer">
+                            <div class="d-flex justify-content-center align-items-center gap-3 mb-2">
+                                <div>
+                                    <span class="text-muted small">Jumlah:</span>
+                                    <span id="jentikCount" class="count-badge count-info ms-1">0</span>
+                                </div>
+                                <div>
+                                    <span class="text-muted small">Rata-rata Confidence:</span>
+                                    <span id="jentikConfidence" class="confidence-badge ms-1">0%</span>
+                                </div>
+                            </div>
+                            <div id="jentikDetails" class="small text-muted">
+                                Tidak ada data deteksi
+                            </div>
+                            <div id="jentikTimestamp" class="last-updated">
+                                Terakhir diperbarui: --
+                            </div>
+                        </div>
+
                         <img id="jentikDetectionImage" src="" alt="Hasil Deteksi Jentik"
-                            class="detection-thumbnail d-none">
+                            class="detection-thumbnail d-none mt-2">
                         <p class="small text-muted mt-2" id="solusiJentik">Solusi: --</p>
                     </div>
                 </div>
@@ -316,6 +387,9 @@
         let jentikLastStatus = "--";
         let jentikLastType = "dark";
         let jentikLastImagePath = null;
+        let jentikCount = 0;
+        let jentikConfidence = 0;
+        let jentikLastUpdate = null;
 
         const alertType = {
             SUCCESS: 'success',
@@ -332,6 +406,143 @@
             const fixedString = floatValue.toFixed(1);
             const integerEquivalent = fixedString.replace('.', '');
             return integerEquivalent;
+        }
+
+        // === Fungsi Format Confidence ===
+        function formatConfidence(confidence) {
+            if (confidence === null || isNaN(confidence)) return '0%';
+            return `${(confidence * 100).toFixed(1)}%`;
+        }
+
+        // === Fungsi Format Timestamp ===
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return '--';
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        // === Fungsi Update UI Statistik Jentik ===
+        function updateJentikStatsUI() {
+            const countElement = document.getElementById('jentikCount');
+            const confidenceElement = document.getElementById('jentikConfidence');
+            const detailsElement = document.getElementById('jentikDetails');
+            const timestampElement = document.getElementById('jentikTimestamp');
+            const statsContainer = document.getElementById('jentikStatsContainer');
+
+            if (countElement) {
+                countElement.textContent = jentikCount;
+                countElement.className = 'count-badge ms-1';
+                if (jentikCount === 0) {
+                    countElement.classList.add('count-success');
+                } else if (jentikCount <= 5) {
+                    countElement.classList.add('count-info');
+                } else {
+                    countElement.classList.add('count-danger');
+                }
+            }
+
+            if (confidenceElement) {
+                confidenceElement.textContent = formatConfidence(jentikConfidence);
+                confidenceElement.className = 'confidence-badge ms-1';
+                if (jentikConfidence >= 0.7) {
+                    confidenceElement.style.backgroundColor = '#d4edda';
+                    confidenceElement.style.borderColor = '#c3e6cb';
+                    confidenceElement.style.color = '#155724';
+                } else if (jentikConfidence >= 0.5) {
+                    confidenceElement.style.backgroundColor = '#fff3cd';
+                    confidenceElement.style.borderColor = '#ffeeba';
+                    confidenceElement.style.color = '#856404';
+                } else {
+                    confidenceElement.style.backgroundColor = '#f8d7da';
+                    confidenceElement.style.borderColor = '#f5c6cb';
+                    confidenceElement.style.color = '#721c24';
+                }
+            }
+
+            if (detailsElement) {
+                if (jentikCount === 0) {
+                    detailsElement.textContent = 'Tidak ada jentik terdeteksi';
+                    detailsElement.className = 'small text-success';
+                } else {
+                    detailsElement.textContent = `${jentikCount} jentik terdeteksi dengan confidence ${formatConfidence(jentikConfidence)}`;
+                    detailsElement.className = 'small text-danger';
+                }
+            }
+
+            if (timestampElement) {
+                timestampElement.textContent = `Terakhir diperbarui: ${formatTimestamp(jentikLastUpdate)}`;
+            }
+
+            if (statsContainer) {
+                statsContainer.style.display = 'block';
+            }
+        }
+
+        // === Fungsi Update Status Jentik dengan Icon yang Sesuai ===
+        function updateJentikStatusUI() {
+            const statusElement = document.getElementById('dataJentikStatus');
+            const imageElement = document.getElementById('jentikDetectionImage');
+            const solusiJentikElement = document.getElementById("solusiJentik");
+
+            if (!statusElement) return;
+
+            let statusText = jentikLastStatus;
+            let statusClass = 'dark';
+            let statusIcon = '';
+            let solusiText = 'Jalankan deteksi manual jika ragu.';
+
+            // Logika untuk menentukan icon dan warna berdasarkan jumlah jentik
+            if (jentikLastStatus.includes("Scanning") || jentikLastStatus === "Scanning...") {
+                // Sedang scanning
+                statusClass = 'warning';
+                statusIcon = 'bi-hourglass-split'; // Icon jam pasir
+                statusText = 'Scanning...';
+                solusiText = 'Deteksi sedang berlangsung. Tunggu hasilnya.';
+            } else if (jentikCount > 0) {
+                // Ada jentik terdeteksi
+                statusClass = 'danger';
+                statusIcon = 'bi-exclamation-triangle-fill'; // Icon segitiga peringatan
+                statusText = `${jentikCount} Jentik Terdeteksi`;
+                solusiText = `RISIKO DBD TINGGI! ${jentikCount} jentik terdeteksi dengan confidence ${formatConfidence(jentikConfidence)}. Segera lakukan Kuras, Sikat, Tutup (3M) dan taburkan abate pada penampungan air segera!`;
+            } else if (jentikCount === 0 && jentikLastStatus !== "--") {
+                // Tidak ada jentik terdeteksi (AMAN)
+                statusClass = 'success';
+                statusIcon = 'bi-check-circle-fill'; // Icon centang hijau
+                statusText = 'Aman (Tidak Terdeteksi)';
+                solusiText = 'Lingkungan aman dari jentik. Tetap lakukan pencegahan 3M (Menguras, Menutup, Mendaur ulang) secara rutin.';
+            } else {
+                // Belum ada data
+                statusClass = 'secondary';
+                statusIcon = 'bi-question-circle-fill'; // Icon tanya
+                statusText = 'Belum Dicek';
+                solusiText = 'Klik tombol "DETEKSI JENTIK" untuk memulai deteksi AI.';
+            }
+
+            // Update teks status dengan icon
+            const iconHtml = statusIcon ? `<i class="bi ${statusIcon} text-${statusClass} jentik-status-icon"></i>` : '';
+            statusElement.innerHTML = `${iconHtml}${statusText}`;
+            statusElement.className = `fw-bold text-dark`;
+
+            // Update solusi
+            if (solusiJentikElement) {
+                solusiJentikElement.textContent = `Solusi: ${solusiText}`;
+            }
+
+            // Update gambar jika ada
+            if (jentikLastImagePath && imageElement) {
+                imageElement.src = jentikLastImagePath;
+                imageElement.classList.remove('d-none');
+            } else if (imageElement) {
+                imageElement.classList.add('d-none');
+                imageElement.src = "";
+            }
+
+            // Update statistik
+            updateJentikStatsUI();
         }
 
         // === Fungsi Tambah Notifikasi ===
@@ -404,12 +615,12 @@
         function checkHealthAlert(data) {
             let currentAlert = false;
             let alertMessage = "";
-            let alertTypeValue = ""; 
+            let alertTypeValue = "";
 
             const temp_val = parseFloat(data.temp) || 0;
             const hum_val = parseFloat(data.hum) || 0;
             const ph_val = parseFloat(data.ph_val) || 0;
-            const ph_status = data.ph_status || ""; 
+            const ph_status = data.ph_status || "";
             const mq2_status = data.mq2_status || "";
             const mq135_ppm = parseFloat(data.mq135_ppm) || 0;
             const jentik_status = data.jentik_status || "--";
@@ -422,8 +633,8 @@
                 alertMessage = "🚨 BAHAYA! Gas/Asap terdeteksi. Segera periksa sumbernya!";
                 currentAlert = true;
                 alertTypeValue = 'danger';
-            } else if (jentik_status.includes("Terdeteksi")) {
-                alertMessage = "🚨 Jentik terdeteksi oleh AI. Lakukan tindakan segera!";
+            } else if (jentik_status.includes("Terdeteksi") || jentikCount > 0) {
+                alertMessage = `🚨 ${jentikCount} jentik terdeteksi oleh AI. Lakukan tindakan segera!`;
                 currentAlert = true;
                 alertTypeValue = 'danger';
             } else if (status_mq135_ppm >= 30.0) {
@@ -438,7 +649,7 @@
                 alertMessage = `🚨 Suhu ruangan BAHAYA (${temp_val}°C). Suhu terlalu rendah! Segera aktifkan pemanas ruangan.`;
                 currentAlert = true;
                 alertTypeValue = 'danger';
-            } 
+            }
             // PERBAIKAN LOGIKA pH BERDASARKAN STATUS BARU
             else if (ph_status.includes("🔴 ASAM")) {
                 alertMessage = `🚨 Kualitas Air (pH) BAHAYA (${ph_val} pH). Air terlalu ASAM! Segera ganti air atau netralkan!`;
@@ -466,7 +677,6 @@
 
                 const newNotif = addNotification(alertMessage, alertTypeValue);
 
-                // PERBAIKI: gunakan alertTypeValue bukan alertType
                 if ((alertTypeValue === 'danger' || alertTypeValue === 'warning') && newNotif) {
                     const initialAlertDiv = document.getElementById('initialAlertModal');
                     const modalBody = document.getElementById('modalAlertMessage');
@@ -478,7 +688,6 @@
 
                         initialAlertDiv.classList.remove('alert-danger', 'bg-warning', 'alert-warning', 'alert-success', 'fade', 'show', 'text-white');
 
-                        // PERBAIKI: gunakan alertTypeValue
                         initialAlertDiv.classList.add(`alert-${alertTypeValue}`, 'fade');
                         initialAlertDiv.setAttribute('role', 'alert');
 
@@ -523,30 +732,29 @@
         async function updateSensorData() {
             try {
                 const response = await fetch(API_LATEST, {
-                    headers: { 
+                    headers: {
                         "X-API-KEY": "PBLKEL4",
                         'Content-Type': 'application/json'
-                    } 
+                    }
                 });
-                
+
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 const data = await response.json();
 
-                console.log("✅ Data diterima:", data);
+                console.log("✅ Data sensor diterima:", data);
 
                 const temp_val = parseFloat(data.temp) || 0;
                 const hum_val = parseFloat(data.hum) || 0;
                 const ph_val = parseFloat(data.ph_val) || 0;
-                const ph_status = data.ph_status || ""; 
+                const ph_status = data.ph_status || "";
                 const mq2_status = data.mq2_status || '--';
                 const mq2_ppm_float = parseFloat(data.mq2_ppm) || 0;
                 const mq135_ppm = parseFloat(data.mq135_ppm) || 0;
-                const jentik_status = data.jentik_status || '--';
 
                 const formatted_mq2_ppm = formatToThreeDigitEquivalent(mq2_ppm_float);
                 const formatted_mq135_ppm = formatToThreeDigitEquivalent(mq135_ppm);
 
-                // Perbarui Nilai Numerik
+                // Perbarui Nilai Numerik HANYA untuk sensor lain
                 if (document.getElementById("dataSuhu")) document.getElementById("dataSuhu").textContent = data.temp || '--';
                 if (document.getElementById("dataKelembaban")) document.getElementById("dataKelembaban").textContent = data.hum || '--';
                 if (document.getElementById("dataPH")) document.getElementById("dataPH").textContent = `${data.ph_val || '--'} pH`;
@@ -628,7 +836,7 @@
                         statusIcon = 'bi-check-circle-fill';
                         solusiText = 'Kualitas air pH ideal (Netral). Pertahankan kebersihannya.';
                     }
-                    
+
                     dataPHStatusElement.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${status}`;
                     dataPHStatusElement.className = `fw-bold text-dark`;
                     if (solusiPHElement) solusiPHElement.textContent = `Solusi: ${solusiText}`;
@@ -642,7 +850,7 @@
                 const solusiLDRElement = document.getElementById("solusiLDR");
 
                 const pythonLux = parseFloat(data.ldr_lux) || 0;
-                const ldr_status_marker = data.ldr_status || 'Error'; // Ambil marker: "Rendah", "Ideal", atau "Tinggi"
+                const ldr_status_marker = data.ldr_status || 'Error';
 
                 let luxDisplayValue = '-- Lux';
                 if (pythonLux > 0) {
@@ -662,26 +870,23 @@
                         statusClass = 'success';
                         statusIcon = 'bi-check-circle-fill';
                         displayStatusText = 'Ideal';
-                        solusiText = 'Tingkat pencahayaan berada dalam rentang ideal (250-350 Lux). Kondisi ini mendukung berbagai aktivitas tanpa memerlukan penyesuaian tambahan.';
+                        solusiText = 'Pencahayaan ideal (250-350 Lux). Kondisi sudah nyaman dan mendukung aktivitas tanpa perlu penyesuaian.';
                     } else if (ldr_status_marker === 'Rendah') {
                         statusClass = 'danger';
                         statusIcon = 'bi-x-circle-fill';
                         displayStatusText = 'Tidak Ideal';
-                        solusiText = 'Tingkat pencahayaan rendah (< 250 Lux). Kondisi ini dapat menyebabkan mata cepat lelah dan mengurangi fokus. Segera tambahkan sumber cahaya, nyalakan lampu, atau buka tirai untuk meningkatkan pencahayaan.';
+                        solusiText = 'Pencahayaan rendah (<250 Lux). Bisa membuat mata cepat lelah dan mengurangi fokus. Tambahkan sumber cahaya.';
                     } else if (ldr_status_marker === 'Tinggi') {
                         statusClass = 'danger';
                         statusIcon = 'bi-x-circle-fill';
                         displayStatusText = 'Tidak Ideal';
-                        solusiText = 'Tingkat pencahayaan tinggi (> 350 Lux). Kondisi ini dapat menimbulkan silau dan membuat mata cepat lelah. Kurangi intensitas cahaya, gunakan tirai, atau atur ulang sumber cahaya agar tidak langsung mengarah ke mata.';
+                        solusiText = 'Pencahayaan tinggi (>350 Lux). Bisa menimbulkan silau dan membuat mata lelah. Kurangi intensitas cahaya.';
                     }
-                    
-                    // Teks Hitam, Ikon Berwarna
+
                     dataLDRStatusElement.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${displayStatusText}`;
                     dataLDRStatusElement.className = `fw-bold text-dark`;
                     if (solusiLDRElement) solusiLDRElement.textContent = `Solusi: ${solusiText}`;
                 }
-                // ==================================================
-
 
                 // Pembaruan MQ-2
                 const solusiMQ2Element = document.getElementById("solusiMQ2");
@@ -731,53 +936,20 @@
                     if (solusiMQ135Element) solusiMQ135Element.textContent = `Solusi: ${solusiText}`;
                 }
 
-                // Pembaruan Hasil AI Jentik
-                const statusElement = document.getElementById('dataJentikStatus');
-                const imageElement = document.getElementById('jentikDetectionImage');
-                const solusiJentikElement = document.getElementById("solusiJentik");
-
-                if (data.jentik_status && statusElement) {
+                // PERUBAHAN UTAMA: JANGAN OVERWRITE DATA JENTIK YANG SUDAH ADA
+                if (data.jentik_status && data.jentik_status !== "--") {
                     jentikLastStatus = data.jentik_status;
+                    jentikCount = parseInt(data.jentik_count) || 0;
+                    jentikConfidence = parseFloat(data.jentik_confidence) || 0;
+                    jentikLastUpdate = Date.now();
 
-                    let statusClass = 'dark';
-                    let statusIcon = '';
-                    let solusiText = 'Jalankan deteksi manual jika ragu.';
-
-                    if (data.jentik_status.includes("Terdeteksi")) {
-                        statusClass = 'danger';
-                        statusIcon = 'bi-x-circle-fill';
-                        solusiText = 'RISIKO DBD TINGGI! Segera lakukan Kuras, Sikat, Tutup (3M) dan taburkan abate pada penampungan air segera!';
-                    } else if (data.jentik_status.includes("Tidak Terdeteksi")) {
-                        statusClass = 'success';
-                        statusIcon = 'bi-check-circle-fill';
-                        solusiText = 'Lingkungan aman dari jentik. Tetap lakukan pencegahan 3M (Menguras, Menutup, Mendaur ulang) secara rutin.';
-                    } else if (data.jentik_status.includes("Scanning")) {
-                        statusClass = 'warning';
-                        statusIcon = '';
-                        solusiText = 'Deteksi sedang berlangsung. Tunggu hasilnya. Jangan ganggu perangkat sensor.';
-                    } else {
-                        statusClass = 'warning';
-                        statusIcon = 'bi-exclamation-triangle-fill';
-                        solusiText = 'Perlu cek ulang sensor/kondisi air.';
+                    if (data.jentik_image) {
+                        jentikLastImagePath = data.jentik_image;
                     }
-
-                    const iconHtml = statusIcon ? `<i class="bi ${statusIcon} text-${statusClass}"></i> ` : '';
-                    const textClass = (data.jentik_status.includes("Scanning") || data.jentik_status.includes("Tidak Jelas")) ? `text-${statusClass}` : 'text-dark';
-
-                    statusElement.innerHTML = `${iconHtml}<span class="${textClass}">${jentikLastStatus}</span>`;
-                    statusElement.className = `fw-bold text-dark`;
-                    if (solusiJentikElement) solusiJentikElement.textContent = `Solusi: ${solusiText}`;
                 }
 
-                if (data.jentik_image && imageElement) {
-                    jentikLastImagePath = data.jentik_image;
-                    imageElement.src = jentikLastImagePath;
-                    imageElement.classList.remove('d-none');
-                } else if (imageElement && !jentikLastImagePath) {
-                    imageElement.classList.add('d-none');
-                    imageElement.src = "";
-                    jentikLastImagePath = null;
-                }
+                // Update UI jentik dengan fungsi khusus
+                updateJentikStatusUI();
 
                 checkHealthAlert(data);
 
@@ -790,12 +962,9 @@
         async function triggerAI() {
             const button = document.getElementById('triggerAIButton');
             const messageBox = document.getElementById('aiMessage');
-            const statusCardElement = document.getElementById('dataJentikStatus');
-            const imageCardElement = document.getElementById('jentikDetectionImage');
-            const solusiJentikElement = document.getElementById("solusiJentik");
             const originalButtonContent = button.innerHTML;
 
-            if (!button || !messageBox || !statusCardElement || !imageCardElement || !solusiJentikElement) {
+            if (!button || !messageBox) {
                 console.error("Elemen UI tidak ditemukan.");
                 return;
             }
@@ -806,16 +975,9 @@
             messageBox.textContent = 'Memulai deteksi AI... Tunggu sebentar.';
             messageBox.className = 'text-warning mt-2 d-block';
 
+            // Set status scanning
             jentikLastStatus = "Scanning...";
-            jentikLastType = "warning";
-
-            statusCardElement.innerHTML = `<span class="text-warning">${jentikLastStatus}</span>`;
-            statusCardElement.className = `fw-bold text-dark`;
-            solusiJentikElement.textContent = 'Solusi: Deteksi sedang berlangsung. Tunggu hasilnya. Jangan ganggu perangkat sensor.';
-
-            imageCardElement.classList.add('d-none');
-            imageCardElement.src = "";
-            jentikLastImagePath = null;
+            updateJentikStatusUI();
 
             try {
                 const response = await fetch(API_TRIGGER, {
@@ -832,42 +994,30 @@
 
                 const result = await response.json();
 
-                const detectionResultStatus = result.status || "Tidak ada hasil";
-                const detectionImagePath = result.result_image || null;
+                console.log("✅ Hasil deteksi AI:", result);
 
-                let status = 'Deteksi Selesai, Status Tidak Jelas';
-                let statusClass = 'warning';
-                let statusIcon = 'bi-exclamation-triangle-fill';
-                let solusiText = 'Perlu cek ulang sensor/kondisi air.';
+                // Ambil data dari hasil AI
+                jentikCount = parseInt(result.jentik_count) || 0;
+                jentikConfidence = parseFloat(result.jentik_confidence) || 0;
+                jentikLastUpdate = Date.now();
 
-                if (detectionResultStatus.includes("Ada jentik terdeteksi")) {
-                    status = 'Jentik Terdeteksi!';
-                    statusClass = 'danger';
-                    statusIcon = 'bi-x-circle-fill';
-                    solusiText = 'RISIKO DBD TINGGI! Segera lakukan Kuras, Sikat, Tutup (3M) dan taburkan abate pada penampungan air segera!';
+                // Tentukan status berdasarkan jumlah jentik
+                if (jentikCount > 0) {
+                    jentikLastStatus = `${jentikCount} Jentik Terdeteksi`;
 
-                    const notifMessage = `🚨 Jentik terdeteksi: ${detectionResultStatus}`;
+                    const notifMessage = `🚨 ${jentikCount} jentik terdeteksi dengan confidence ${formatConfidence(jentikConfidence)}`;
                     addNotification(notifMessage, 'danger');
-                } else if (detectionResultStatus.includes("Tidak ada jentik terdeteksi")) {
-                    status = 'Jentik Tidak Terdeteksi';
-                    statusClass = 'success';
-                    statusIcon = 'bi-check-circle-fill';
-                    solusiText = 'Lingkungan aman dari jentik. Tetap lakukan pencegahan 3M (Menguras, Menutup, Mendaur ulang) secara rutin.';
-                }
-
-                statusCardElement.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${status}`;
-                statusCardElement.className = `fw-bold text-dark`;
-                solusiJentikElement.textContent = `Solusi: ${solusiText}`;
-
-                if (detectionImagePath) {
-                    jentikLastImagePath = detectionImagePath;
-                    imageCardElement.src = jentikLastImagePath;
-                    imageCardElement.classList.remove('d-none');
                 } else {
-                    imageCardElement.classList.add('d-none');
-                    imageCardElement.src = "";
-                    jentikLastImagePath = null;
+                    jentikLastStatus = "Tidak Terdeteksi";
                 }
+
+                // Update gambar jika ada
+                if (result.result_image) {
+                    jentikLastImagePath = result.result_image;
+                }
+
+                // Update UI dengan hasil deteksi
+                updateJentikStatusUI();
 
                 messageBox.textContent = 'Klik untuk menjalankan deteksi AI pada sampel air.';
                 messageBox.className = 'text-muted mt-2 d-block';
@@ -879,6 +1029,12 @@
                 messageBox.className = 'text-danger mt-2 d-block';
 
                 addNotification(`🚨 Gagal terhubung/proses AI: ${error.message}`, 'danger');
+
+                // Reset status jika gagal
+                jentikLastStatus = "Belum Dicek";
+                jentikCount = 0;
+                jentikConfidence = 0;
+                updateJentikStatusUI();
 
             } finally {
                 button.innerHTML = originalButtonContent;
@@ -919,10 +1075,18 @@
                 el.classList.add('text-dark');
             });
 
+            // Inisialisasi UI jentik
+            updateJentikStatusUI();
+
+            // Update data sensor pertama kali
             updateSensorData();
+
+            // Set interval untuk update sensor
             setInterval(updateSensorData, 5000);
+
             updateNotificationUI();
         });
     </script>
 </body>
+
 </html>
