@@ -78,7 +78,7 @@ V_REF = 3.3
 R_LOAD = 10.0  # kΩ
 PH7_VOLTAGE = 1.625  # Voltage pada pH 7.0
 PH4_VOLTAGE = 1.613  # Voltage pada pH 4.0
-A_MQ2 = 800
+A_MQ2 = 1000
 B_MQ2 = -1.5
 MQ2_RATIO_CLEAN_AIR = 9.83
 A_MQ135 = 1000
@@ -98,7 +98,7 @@ CH_PH = 3
 # ===============================
 MIN_CONF   = 0.5
 IMG_SIZE   = 1408
-NMS_IOU    = 0.52
+NMS_IOU    = 0.55
 MAX_DET    = 1000
 ONLY_CLASS = 0
 MODEL_PATH = "/home/pi/Documents/AI/best (14).pt"
@@ -125,6 +125,13 @@ except Exception as e:
 CAM_INDEX = 0
 global_frame = None
 
+# ================================
+#  MODE FOKUS
+# ================================
+USE_AUTOFOCUS = True     # True = Autofocus ON
+MANUAL_FOCUS_VALUE =   20 # Jika autofocus OFF → pakai fokus ini (0–255)
+
+
 def camera_loop():
     global global_frame
 
@@ -132,7 +139,7 @@ def camera_loop():
     print("[INFO] Starting camera thread...")
     print("==============================\n")
 
-    # Pakai V4L2 backend SELALU
+    # Selalu pakai backend V4L2
     cap = cv2.VideoCapture(CAM_INDEX, cv2.CAP_V4L2)
 
     if not cap.isOpened():
@@ -143,24 +150,44 @@ def camera_loop():
     print("[INFO] Apply MJPEG fix...")
 
     # ========================================================
-    # FIX PALING PENTING → TANPA INI CAMERA TIDAK AKAN NYALA
+    # FIX PALING PENTING → WAJIB AGAR LOGITECH C920e NYALA
     # ========================================================
-
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     cap.set(cv2.CAP_PROP_FPS, 30)
 
+    # Tunggu kamera stabil
     time.sleep(0.3)
 
-    print("\n[INFO] Camera settings after apply:")
-    print("  FOURCC       :", cap.get(cv2.CAP_PROP_FOURCC))
-    print("  Width        :", cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    print("  Height       :", cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    print("  FPS          :", cap.get(cv2.CAP_PROP_FPS))
+    # ================================
+    # FOCUS CONTROL
+    # ================================
+    if USE_AUTOFOCUS:
+        print("[INFO] Autofocus = ON")
+        cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
+    else:
+        print("[INFO] Autofocus = OFF → Manual focus mode")
+        cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+        cap.set(cv2.CAP_PROP_FOCUS, MANUAL_FOCUS_VALUE)
+
+    # ================================
+    # CETAK INFO KAMERA
+    # ================================
+    print("\n[INFO] Current Camera Settings:")
+    print("  FOURCC        :", cap.get(cv2.CAP_PROP_FOURCC))
+    print("  Width         :", cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    print("  Height        :", cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    print("  FPS           :", cap.get(cv2.CAP_PROP_FPS))
+    print("  Autofocus     :", cap.get(cv2.CAP_PROP_AUTOFOCUS))
+    print("  Focus Value   :", cap.get(cv2.CAP_PROP_FOCUS))
     print("=========================================\n")
 
-    # Mulai membaca frame
+    # ================================
+    # FRAME LOOP
+    # ================================
+    print("[INFO] Start reading frames...")
+
     while True:
         ret, frame = cap.read()
 
@@ -168,9 +195,9 @@ def camera_loop():
             print("[WARN] Frame gagal dibaca… Retrying...")
             time.sleep(0.05)
             continue
-        
-        # Simpan frame global (untuk Flask)
+
         global_frame = frame
+
 
 # Jalankan thread kamera
 t = threading.Thread(target=camera_loop, daemon=True)
