@@ -96,7 +96,7 @@ CH_PH = 3
 # ===============================
 # CONFIG YOLO (DARI KODE KEDUA)
 # ===============================
-MIN_CONF   = 0.6
+MIN_CONF   = 0.5
 IMG_SIZE   = 1408
 NMS_IOU    = 0.52
 MAX_DET    = 1000
@@ -128,69 +128,49 @@ global_frame = None
 def camera_loop():
     global global_frame
 
-    print("[INFO] Starting camera background thread...")
-    
-    # 🔴 PERBAIKAN 1: Paksa backend V4L2
-    # Gunakan V4L2 agar kontrol pengaturan kamera stabil di Linux/Raspi
-    cap = cv2.VideoCapture(CAM_INDEX + cv2.CAP_V4L2) 
-    
-    # Cek jika kamera gagal dibuka
+    print("\n==============================")
+    print("[INFO] Starting camera thread...")
+    print("==============================\n")
+
+    # Pakai V4L2 backend SELALU
+    cap = cv2.VideoCapture(CAM_INDEX, cv2.CAP_V4L2)
+
     if not cap.isOpened():
-        print(f"[ERROR] Cannot open camera index {CAM_INDEX}. Check index or camera connection.")
+        print("[ERROR] Tidak bisa membuka kamera /dev/video0 !")
         return
 
-    # =====================================================
-    # EXPOSURE FIX — MANUAL MODE (ANTI GELAP & WARNA)
-    # =====================================================
-    
-    # 🔴 PERBAIKAN 2: AUTO EXPOSURE HARUS 0
-    # Nilai 1 sering kali mengaktifkan shutter priority, bukan manual penuh.
-    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1) # 0 = Manual Mode
-    time.sleep(0.1)
+    print("[INFO] Kamera terbuka dengan backend V4L2")
+    print("[INFO] Apply MJPEG fix...")
 
-    # EXPOSURE: Nilai 400 terlalu tinggi, bisa menyebabkan driver menolak.
-    # Coba batas yang lebih umum (250) atau 10000 jika kamera mendukung range tinggi.
-    cap.set(cv2.CAP_PROP_EXPOSURE, 300) 
-    
-    # BRIGHTNESS & CONTRAST
-    cap.set(cv2.CAP_PROP_BRIGHTNESS, 300)
-    cap.set(cv2.CAP_PROP_CONTRAST, 200)
-    
-    # 🔴 PERBAIKAN 3: WHITE BALANCE & SATURATION (Anti Abu-abu)
-    # White Balance: Matikan Auto WB (0) agar warna tidak bergeser ke biru/abu-abu.
-    cap.set(cv2.CAP_PROP_AUTO_WB, 0) 
-    
-    # SATURATION: Nilai 40 sangat rendah (pudar). Naikkan agresif (misal 150-200) agar warna muncul.
-    cap.set(cv2.CAP_PROP_SATURATION, 200) 
-    
-    # GAIN (Sensitivitas): Coba naikkan sedikit jika masih gelap.
-    cap.set(cv2.CAP_PROP_GAIN, 50)
-    
-    # Tambahkan kontrol FOKUS (penting agar tidak blur)
-    cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
-    cap.set(cv2.CAP_PROP_FOCUS, 20) # Nilai ini mungkin perlu dicoba-coba (0-255)
+    # ========================================================
+    # FIX PALING PENTING → TANPA INI CAMERA TIDAK AKAN NYALA
+    # ========================================================
 
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FPS, 30)
 
-    print("[INFO] Exposure Settings Applied:")
-    print("  Auto Exposure :", cap.get(cv2.CAP_PROP_AUTO_EXPOSURE))
-    print("  Exposure      :", cap.get(cv2.CAP_PROP_EXPOSURE))
-    print("  Brightness    :", cap.get(cv2.CAP_PROP_BRIGHTNESS))
-    print("  Contrast      :", cap.get(cv2.CAP_PROP_CONTRAST))
-    print("  Saturation    :", cap.get(cv2.CAP_PROP_SATURATION))
-    print("  Gain          :", cap.get(cv2.CAP_PROP_GAIN))
-    print("  Focus         :", cap.get(cv2.CAP_PROP_FOCUS))
-    print("========================================")
+    time.sleep(0.3)
 
-    # Loop kamera
+    print("\n[INFO] Camera settings after apply:")
+    print("  FOURCC       :", cap.get(cv2.CAP_PROP_FOURCC))
+    print("  Width        :", cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    print("  Height       :", cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    print("  FPS          :", cap.get(cv2.CAP_PROP_FPS))
+    print("=========================================\n")
+
+    # Mulai membaca frame
     while True:
         ret, frame = cap.read()
-        if ret:
-            global_frame = frame
-        # Tambahkan jeda kecil jika ret False
-        else:
-            time.sleep(0.01)
+
+        if not ret:
+            print("[WARN] Frame gagal dibaca… Retrying...")
+            time.sleep(0.05)
+            continue
+        
+        # Simpan frame global (untuk Flask)
+        global_frame = frame
 
 # Jalankan thread kamera
 t = threading.Thread(target=camera_loop, daemon=True)
@@ -840,14 +820,13 @@ def trigger_ai():
     # 1️⃣ Ambil gambar dari frame kamera yang sudah tersedia (SUPER FAST)
     frame = global_frame.copy()
     
-    # 2️⃣ 🔴 PERBAIKAN KRITIS: Post-processing ANTI-KABUT (CLAHE + Sharpening)
+   # 2️⃣ 🔴 PERBAIKAN KRITIS: Post-processing ANTI-KABUT (CLAHE + Sharpening)
     try:
         # Pisahkan Saluran Warna ke ruang LAB (Lightness/Luminosity, a, b)
         lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
         
         # Terapkan CLAHE (Contrast Limited Adaptive Histogram Equalization) pada saluran L
-        # CLAHE efektif melawan haze/kabut putih dengan meningkatkan kontras lokal.
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
         cl = clahe.apply(l)
         
@@ -855,15 +834,17 @@ def trigger_ai():
         limg = cv2.merge((cl, a, b))
         processed_frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
         
-        # Sharpening akhir untuk kejernihan
-        kernel = np.array([[0, -1, 0], 
-                           [-1, 5, -1],
-                           [0, -1, 0]])
-        sharp = cv2.filter2D(processed_frame, -1, kernel)
+        # 🔴 KOREKSI SHARPNESS: Gunakan Unsharp Masking SANGAT LEMBUT
+        # Blur ringan (sigma=2)
+        blur = cv2.GaussianBlur(processed_frame, (0, 0), 2)
+        
+        # Gunakan koefisien 1.05 dan -0.05 untuk efek sharpening yang HAMPIR TIDAK TERLIHAT.
+        # Ini memberikan sedikit sentuhan ketajaman tanpa membuat artefak.
+        sharp = cv2.addWeighted(processed_frame, 1.05, blur, -0.05, 0)
         
         # Simpan versi yang sudah diproses untuk YOLO
         cv2.imwrite(filepath, sharp) 
-        print("[IMAGE INFO] Post-processing (CLAHE + Sharpening) berhasil.")
+        print("[IMAGE INFO] Post-processing (CLAHE + Sharpening Sangat Lembut) berhasil.")
         
     except Exception as e:
         # Jika terjadi error saat post-processing, gunakan frame asli (fallback)
