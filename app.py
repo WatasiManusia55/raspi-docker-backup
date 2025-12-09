@@ -101,7 +101,7 @@ IMG_SIZE   = 1408
 NMS_IOU    = 0.55
 MAX_DET    = 1000
 ONLY_CLASS = 0
-MODEL_PATH = "/home/pi/Documents/AI/best (14).pt"
+MODEL_PATH = "/home/pi/Documents/AI/best (19).pt"
 
 # ===============================
 # GPU / CPU SETUP (DARI KODE KEDUA)
