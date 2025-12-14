@@ -78,10 +78,10 @@ V_REF = 3.3
 R_LOAD = 10.0  # kΩ
 PH7_VOLTAGE = 1.625  # Voltage pada pH 7.0
 PH4_VOLTAGE = 1.613  # Voltage pada pH 4.0
-A_MQ2 = 1000
+A_MQ2 = 700
 B_MQ2 = -1.5
 MQ2_RATIO_CLEAN_AIR = 9.83
-A_MQ135 = 1000
+A_MQ135 = 800
 B_MQ135 = -2.862
 MQ135_RATIO_CLEAN_AIR = 3.6
 R0_MQ2 = 25.0
@@ -101,7 +101,7 @@ IMG_SIZE   = 1408
 NMS_IOU    = 0.55
 MAX_DET    = 1000
 ONLY_CLASS = 0
-MODEL_PATH = "/home/pi/Documents/AI/best (19).pt"
+MODEL_PATH = "/home/pi/Documents/AI/best (18).pt"
 
 # ===============================
 # GPU / CPU SETUP (DARI KODE KEDUA)
@@ -279,7 +279,7 @@ CACHE_FILE = "sensor_cache.json"
 MAX_CACHE_SIZE = 1000
 
 # --- Database Credentials ---
-DB_HOST = os.getenv("DB_HOST", "10.218.161.79")  
+DB_HOST = os.getenv("DB_HOST", "10.197.44.79")  
 DB_NAME = os.getenv("DB_NAME", "iotdb")
 DB_USER = os.getenv("DB_USER", "iotuser")
 DB_PASS = os.getenv("DB_PASS", "iotpass123")
