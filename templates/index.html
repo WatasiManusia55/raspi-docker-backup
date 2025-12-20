@@ -452,7 +452,7 @@
                 statusClass = 'danger';
                 statusIcon = 'bi-exclamation-triangle-fill';
                 statusText = `${jentikCount} Jentik Terdeteksi`;
-                solusiText = `RISIKO DBD TINGGI! ${jentikCount} jentik terdeteksi. Segera lakukan Kuras, Sikat, Tutup (3M) dan taburkan abate pada penampungan air segera!`;
+                solusiText = `Risiko DBD. ${jentikCount} jentik terdeteksi. Segera lakukan Kuras, Sikat, Tutup (3M) dan taburkan abate pada penampungan air segera!`;
             } else if (jentikCount === 0 && jentikLastStatus !== "--") {
                 statusClass = 'success';
                 statusIcon = 'bi-check-circle-fill';
@@ -782,7 +782,7 @@
                 const solusiSuhuElement = document.getElementById("solusiSuhu");
                 if (dataSuhuStatusElement) {
                     let status = 'Ideal'; let statusClass = 'success'; let statusIcon = 'bi-check-circle-fill';
-                    let solusiText = 'Kondisi suhu normal sehingga mendukung berbagai aktivitas. Pertahankan kondisi ini.';
+                    let solusiText = 'Kondisi suhu ideal. Sehingga mendukung berbagai aktivitas. Pertahankan kondisi ini.';
                     if (temp_val > 30) { status = 'Bahaya'; statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; solusiText = 'Suhu terlalu tinggi dan berpotensi menyebabkan dehidrasi serta heatstroke. Segera nyalakan pendingin ruangan atau buka ventilasi.'; }
                     else if (temp_val < 18) { status = 'Bahaya'; statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; solusiText = 'Suhu terlalu rendah dan dapat memicu hipotermia serta nyeri sendi dan otot. Segera aktifkan pemanas ruangan atau tutup ventilasi.'; }
                     dataSuhuStatusElement.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${status}`;
@@ -795,9 +795,9 @@
                 const solusiKelembabanElement = document.getElementById("solusiKelembaban");
                 if (dataKelembabanStatusElement) {
                     let status = 'Ideal'; let statusClass = 'success'; let statusIcon = 'bi-check-circle-fill';
-                    let solusiText = 'Kondisi kelembaban ideal. Pertahankan.';
-                    if (hum_val > 70) { status = 'BAHAYA'; statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; solusiText = 'Kelembaban terlalu tinggi. Segera aktifkan Dehumidifier atau buka jendela untuk sirkulasi.'; }
-                    else if (hum_val < 40) { status = 'BAHAYA'; statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; solusiText = 'Kelembaban terlalu rendah. Segera aktifkan Humidifier atau letakkan wadah berisi air.'; }
+                    let solusiText = 'Kondisi kelembaban ideal. Sehingga mendukung berbagai aktivitas. Pertahankan kondisi ini.';
+                    if (hum_val > 70) { status = 'Bahaya'; statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; solusiText = 'Kelembaban terlalu tinggi. Segera aktifkan Dehumidifier atau buka jendela untuk sirkulasi.'; }
+                    else if (hum_val < 40) { status = 'Bahaya'; statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; solusiText = 'Kelembaban terlalu rendah. Segera aktifkan humidifier atau letakkan tanaman hias untuk membantu menjaga kelembaban udara.'; }
                     dataKelembabanStatusElement.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${status}`;
                     dataKelembabanStatusElement.className = `fw-bold text-dark`;
                     if (solusiKelembabanElement) solusiKelembabanElement.textContent = `Solusi: ${solusiText}`;
@@ -808,10 +808,10 @@
                 const solusiPHElement = document.getElementById("solusiPH");
                 if (dataPHStatusElement) {
                     let status = 'Netral'; let statusClass = 'success'; let statusIcon = 'bi-check-circle-fill';
-                    let solusiText = 'Kualitas air pH ideal (Netral). Pertahankan kebersihannya.';
-                    if (ph_status.includes("🔴 ASAM")) { status = 'ASAM'; statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; solusiText = 'pH air ASAM. Segera ganti air atau netralkan cepat dengan pengangkat pH!'; }
-                    else if (ph_status.includes("🔵 BASA")) { status = 'BASA'; statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; solusiText = 'pH air BASA. Segera ganti air atau netralkan cepat dengan penurun pH!'; }
-                    else if (ph_status.includes("🟢 NETRAL")) { status = 'NETRAL'; statusClass = 'success'; statusIcon = 'bi-check-circle-fill'; solusiText = 'Kualitas air pH ideal (Netral). Pertahankan kebersihannya.'; }
+                    let solusiText = 'Kualitas air pH Normal (Netral). Pertahankan kebersihannya.';
+                    if (ph_status.includes("🔴 ASAM")) { status = 'Tidak Ideal'; statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; solusiText = 'pH air asam. Dapat menyebabkan gangguan metabolisme, gigi, dan tulang. Segera ganti air atau netralkan cepat dengan pengangkat pH (kapur/soda kue).'; }
+                    else if (ph_status.includes("🔵 BASA")) { status = 'Tidak Ideal'; statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; solusiText = 'pH air basa. Dapat menyebabkan perut kembung dan masalah penyerapan nutrisi. Segera ganti air atau netralkan cepat dengan penurun pH (asam sitrat/asam sulfat).'; }
+                    else if (ph_status.includes("🟢 NETRAL")) { status = 'Ideal'; statusClass = 'success'; statusIcon = 'bi-check-circle-fill'; solusiText = 'Kualitas air pH netral. Lakukan pengujian berkala untuk menjaga kestabilan pH. Pertahankan kondisi ini.'; }
                     dataPHStatusElement.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${status}`;
                     dataPHStatusElement.className = `fw-bold text-dark`;
                     if (solusiPHElement) solusiPHElement.textContent = `Solusi: ${solusiText}`;
@@ -829,9 +829,9 @@
                     let statusClass = 'secondary'; let statusIcon = 'bi-question-circle-fill';
                     let solusiText = 'Gagal mengambil data atau status tidak terdefinisi.';
                     let displayStatusText = ldr_status_marker;
-                    if (ldr_status_marker === 'Ideal') { statusClass = 'success'; statusIcon = 'bi-check-circle-fill'; displayStatusText = 'Ideal'; solusiText = 'Pencahayaan ideal (250-350 Lux). Kondisi sudah nyaman dan mendukung aktivitas tanpa perlu penyesuaian.'; }
-                    else if (ldr_status_marker === 'Rendah') { statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; displayStatusText = 'Tidak Ideal'; solusiText = 'Pencahayaan rendah (<250 Lux). Bisa membuat mata cepat lelah dan mengurangi fokus. Tambahkan sumber cahaya.'; }
-                    else if (ldr_status_marker === 'Tinggi') { statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; displayStatusText = 'Tidak Ideal'; solusiText = 'Pencahayaan tinggi (>350 Lux). Bisa menimbulkan silau dan membuat mata lelah. Kurangi intensitas cahaya.'; }
+                    if (ldr_status_marker === 'Ideal') { statusClass = 'success'; statusIcon = 'bi-check-circle-fill'; displayStatusText = 'Ideal'; solusiText = 'Pencahayaan ideal (250-350 Lux). Sehingga mendukung berbagai aktivitas. Pertahankan kondisi ini.'; }
+                    else if (ldr_status_marker === 'Rendah') { statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; displayStatusText = 'Tidak Ideal'; solusiText = 'Pencahayaan rendah (<250 Lux). Dapat membuat mata cepat lelah dan mengurangi fokus. Tambahkan sumber cahaya.'; }
+                    else if (ldr_status_marker === 'Tinggi') { statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; displayStatusText = 'Tidak Ideal'; solusiText = 'Pencahayaan tinggi (>350 Lux). Dapat menimbulkan sakit kepala dan membuat mata lelah. Kurangi intensitas cahaya.'; }
                     dataLDRStatusElement.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${displayStatusText}`;
                     dataLDRStatusElement.className = `fw-bold text-dark`;
                     if (solusiLDRElement) solusiLDRElement.textContent = `Solusi: ${solusiText}`;
@@ -843,7 +843,7 @@
                     const statusEl = document.getElementById("dataMQ2Status");
                     let status = mq2_status; let statusClass = 'success'; let statusIcon = 'bi-check-circle-fill';
                     let solusiText = 'Konsentrasi gas normal. Tetap waspada terhadap bau tak sedap dan lakukan pemeriksaan rutin.';
-                    if (status.includes('Terdeteksi')) { statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; solusiText = 'DARURAT! Lakukan evakuasi segera dan periksa sumber kebocoran gas atau asap (misal: kompor, korsleting) secepatnya!'; }
+                    if (status.includes('Terdeteksi')) { statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; solusiText = 'Konsentrasi gas tidak normal. Dapat menyebabkan sesak nafas dan gegar otak. Lakukan evakuasi segera dan periksa sumber kebocoran gas atau asap (misal: kompor, korsleting) secepatnya!'; }
                     statusEl.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${status}`;
                     statusEl.className = `fw-bold text-dark`;
                     if (solusiMQ2Element) solusiMQ2Element.textContent = `Solusi: ${solusiText}`;
@@ -855,8 +855,8 @@
                     const statusEl = document.getElementById("dataMQ135Status");
                     let mq135_status_text = 'T/A'; let statusClass = 'secondary'; let statusIcon = 'bi-question-circle-fill';
                     let solusiText = 'Sensor belum membaca data.';
-                    if (mq135_ppm >= 30.0) { mq135_status_text = 'BURUK'; statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; solusiText = 'Kualitas udara rendah. Segera tingkatkan ventilasi dan periksa sumber polutan (misal: knalpot, pembakaran).'; }
-                    else if (mq135_ppm > 0) { mq135_status_text = 'BAIK'; statusClass = 'success'; statusIcon = 'bi-check-circle-fill'; solusiText = 'Kualitas udara baik. Pertahankan sirkulasi udara yang memadai.'; }
+                    if (mq135_ppm >= 30.0) { mq135_status_text = 'Buruk'; statusClass = 'danger'; statusIcon = 'bi-x-circle-fill'; solusiText = 'Kualitas udara buruk. Segera tingkatkan ventilasi (buka jendela/nyalakan exhaust fan) dan periksa sumber polutan'; }
+                    else if (mq135_ppm > 0) { mq135_status_text = 'Aman'; statusClass = 'success'; statusIcon = 'bi-check-circle-fill'; solusiText = 'Kualitas udara baik. Pertahankan sirkulasi udara yang memadai.'; }
                     statusEl.innerHTML = `<i class="bi ${statusIcon} text-${statusClass}"></i> ${mq135_status_text}`;
                     statusEl.className = `fw-bold text-dark`;
                     if (solusiMQ135Element) solusiMQ135Element.textContent = `Solusi: ${solusiText}`;
